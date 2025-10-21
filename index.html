@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>وب اپ ارسال گیفت</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .error {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .camera-section {
+            margin-top: 30px;
+        }
+
+        #cameraPreview {
+            width: 100%;
+            height: 300px;
+            background-color: #000;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            object-fit: cover;
+        }
+
+        .camera-controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+
+        .btn-success {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .flash-control {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .flash-control label {
+            margin-bottom: 0;
+            margin-right: 10px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #3498db;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ارسال گیفت</h1>
+        
+        <div class="form-group">
+            <label for="nationalCode">کد ملی</label>
+            <input type="text" id="nationalCode" maxlength="10" placeholder="کد ملی 10 رقمی">
+            <div class="error" id="nationalCodeError">کد ملی باید 10 رقم باشد</div>
+        </div>
+        
+        <div class="form-group">
+            <label for="giftType">نوع گیفت</label>
+            <select id="giftType">
+                <option value="">لطفا انتخاب کنید</option>
+                <option value="type1">نوع اول</option>
+                <option value="type2">نوع دوم</option>
+                <option value="type3">نوع سوم</option>
+                <option value="type4">نوع چهارم</option>
+            </select>
+            <div class="error" id="giftTypeError">لطفا نوع گیفت را انتخاب کنید</div>
+        </div>
+        
+        <div class="form-group">
+            <label>عکس</label>
+            <div class="camera-section">
+                <video id="cameraPreview" autoplay playsinline></video>
+                <canvas id="photoCanvas" class="hidden"></canvas>
+                <img id="capturedPhoto" class="hidden" alt="عکس گرفته شده">
+                
+                <div class="flash-control">
+                    <label for="flashToggle">فلش</label>
+                    <label class="switch">
+                        <input type="checkbox" id="flashToggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="camera-controls">
+                    <button id="captureButton" class="btn-primary">عکس بگیر</button>
+                    <button id="retakeButton" class="btn-secondary hidden">عکس مجدد</button>
+                    <button id="uploadButton" class="btn-success">آپلود عکس</button>
+                </div>
+                
+                <input type="file" id="fileInput" accept="image/*" class="hidden">
+            </div>
+        </div>
+        
+        <button id="submitButton" class="btn-success" style="width: 100%; margin-top: 20px;">ارسال</button>
+    </div>
+
+    <script>
+        // Elements
+        const nationalCodeInput = document.getElementById('nationalCode');
+        const giftTypeSelect = document.getElementById('giftType');
+        const cameraPreview = document.getElementById('cameraPreview');
+        const photoCanvas = document.getElementById('photoCanvas');
+        const capturedPhoto = document.getElementById('capturedPhoto');
+        const captureButton = document.getElementById('captureButton');
+        const retakeButton = document.getElementById('retakeButton');
+        const uploadButton = document.getElementById('uploadButton');
+        const fileInput = document.getElementById('fileInput');
+        const flashToggle = document.getElementById('flashToggle');
+        const submitButton = document.getElementById('submitButton');
+
+        // Error elements
+        const nationalCodeError = document.getElementById('nationalCodeError');
+        const giftTypeError = document.getElementById('giftTypeError');
+
+        // Camera variables
+        let stream = null;
+        let isCameraActive = false;
+
+        // Initialize camera
+        async function initCamera() {
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: 'environment', // استفاده از دوربین پشت
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+                
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                cameraPreview.srcObject = stream;
+                isCameraActive = true;
+            } catch (error) {
+                console.error('خطا در دسترسی به دوربین:', error);
+                alert('دسترسی به دوربین ممکن نیست');
+            }
+        }
+
+        // Capture photo
+        captureButton.addEventListener('click', () => {
+            if (!isCameraActive) return;
+            
+            const context = photoCanvas.getContext('2d');
+            photoCanvas.width = cameraPreview.videoWidth;
+            photoCanvas.height = cameraPreview.videoHeight;
+            context.drawImage(cameraPreview, 0, 0, photoCanvas.width, photoCanvas.height);
+            
+            // نمایش عکس گرفته شده
+            capturedPhoto.src = photoCanvas.toDataURL('image/png');
+            capturedPhoto.classList.remove('hidden');
+            cameraPreview.classList.add('hidden');
+            
+            // تغییر وضعیت دکمه‌ها
+            captureButton.classList.add('hidden');
+            retakeButton.classList.remove('hidden');
+        });
+
+        // Retake photo
+        retakeButton.addEventListener('click', () => {
+            capturedPhoto.classList.add('hidden');
+            cameraPreview.classList.remove('hidden');
+            captureButton.classList.remove('hidden');
+            retakeButton.classList.add('hidden');
+        });
+
+        // Upload photo
+        uploadButton.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    capturedPhoto.src = e.target.result;
+                    capturedPhoto.classList.remove('hidden');
+                    cameraPreview.classList.add('hidden');
+                    captureButton.classList.add('hidden');
+                    retakeButton.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Flash control
+        flashToggle.addEventListener('change', async () => {
+            if (stream) {
+                // متوقف کردن استریم فعلی
+                stream.getTracks().forEach(track => track.stop());
+                
+                // راه‌اندازی مجدد دوربین با تنظیمات فلش
+                try {
+                    const constraints = {
+                        video: {
+                            facingMode: 'environment',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
+                        audio: false
+                    };
+                    
+                    if (flashToggle.checked) {
+                        constraints.video.torch = true;
+                    }
+                    
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    cameraPreview.srcObject = stream;
+                } catch (error) {
+                    console.error('خطا در تغییر وضعیت فلش:', error);
+                    flashToggle.checked = false;
+                }
+            }
+        });
+
+        // Validations
+        nationalCodeInput.addEventListener('input', (e) => {
+            const value = e.target.value;
+            if (value.length !== 10 || !/^\d+$/.test(value)) {
+                nationalCodeError.style.display = 'block';
+            } else {
+                nationalCodeError.style.display = 'none';
+            }
+        });
+
+        giftTypeSelect.addEventListener('change', (e) => {
+            if (e.target.value === '') {
+                giftTypeError.style.display = 'block';
+            } else {
+                giftTypeError.style.display = 'none';
+            }
+        });
+
+        // Submit form
+        submitButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            let isValid = true;
+            
+            // Validate national code
+            if (nationalCodeInput.value.length !== 10 || !/^\d+$/.test(nationalCodeInput.value)) {
+                nationalCodeError.style.display = 'block';
+                isValid = false;
+            } else {
+                nationalCodeError.style.display = 'none';
+            }
+            
+            // Validate gift type
+            if (giftTypeSelect.value === '') {
+                giftTypeError.style.display = 'block';
+                isValid = false;
+            } else {
+                giftTypeError.style.display = 'none';
+            }
+            
+            // Validate photo
+            if (capturedPhoto.classList.contains('hidden')) {
+                alert('لطفا یک عکس بگیرید یا آپلود کنید');
+                isValid = false;
+            }
+            
+            if (isValid) {
+                alert('فرم با موفقیت ارسال شد!');
+                // اینجا می‌توانید اطلاعات را به سرور ارسال کنید
+            }
+        });
+
+        // Initialize camera on page load
+        window.addEventListener('load', initCamera);
+    </script>
+</body>
+</html>
