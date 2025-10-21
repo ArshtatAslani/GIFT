@@ -62,19 +62,35 @@
             margin-top: 30px;
         }
 
-        #cameraPreview {
+        .camera-container {
             width: 100%;
             height: 300px;
             background-color: #000;
             border-radius: 5px;
             margin-bottom: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #cameraPreview {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
+        }
+
+        #capturedPhoto {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: black;
         }
 
         .camera-controls {
             display: flex;
             justify-content: space-between;
             margin-top: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         button {
@@ -84,6 +100,8 @@
             cursor: pointer;
             font-size: 14px;
             transition: background-color 0.3s;
+            flex: 1;
+            min-width: 120px;
         }
 
         .btn-primary {
@@ -109,6 +127,7 @@
             display: flex;
             align-items: center;
             margin-bottom: 10px;
+            justify-content: center;
         }
 
         .flash-control label {
@@ -160,6 +179,11 @@
         input:checked + .slider:before {
             transform: translateX(26px);
         }
+
+        #submitButton {
+            width: 100%;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -187,9 +211,10 @@
         <div class="form-group">
             <label>عکس</label>
             <div class="camera-section">
-                <video id="cameraPreview" autoplay playsinline></video>
-                <canvas id="photoCanvas" class="hidden"></canvas>
-                <img id="capturedPhoto" class="hidden" alt="عکس گرفته شده">
+                <div class="camera-container">
+                    <video id="cameraPreview" autoplay playsinline></video>
+                    <img id="capturedPhoto" class="hidden" alt="عکس گرفته شده">
+                </div>
                 
                 <div class="flash-control">
                     <label for="flashToggle">فلش</label>
@@ -209,7 +234,7 @@
             </div>
         </div>
         
-        <button id="submitButton" class="btn-success" style="width: 100%; margin-top: 20px;">ارسال</button>
+        <button id="submitButton" class="btn-success">ارسال</button>
     </div>
 
     <script>
@@ -217,7 +242,6 @@
         const nationalCodeInput = document.getElementById('nationalCode');
         const giftTypeSelect = document.getElementById('giftType');
         const cameraPreview = document.getElementById('cameraPreview');
-        const photoCanvas = document.getElementById('photoCanvas');
         const capturedPhoto = document.getElementById('capturedPhoto');
         const captureButton = document.getElementById('captureButton');
         const retakeButton = document.getElementById('retakeButton');
@@ -233,10 +257,16 @@
         // Camera variables
         let stream = null;
         let isCameraActive = false;
+        let track = null;
 
         // Initialize camera
         async function initCamera() {
             try {
+                // اگر استریم فعال وجود دارد، آن را متوقف کن
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+
                 const constraints = {
                     video: {
                         facingMode: 'environment', // استفاده از دوربین پشت
@@ -249,9 +279,28 @@
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
                 cameraPreview.srcObject = stream;
                 isCameraActive = true;
+                
+                // ذخیره track برای کنترل فلش
+                track = stream.getVideoTracks()[0];
+                
+                // تنظیم فلش بر اساس وضعیت toggle
+                applyFlashSetting();
             } catch (error) {
                 console.error('خطا در دسترسی به دوربین:', error);
                 alert('دسترسی به دوربین ممکن نیست');
+            }
+        }
+
+        // اعمال تنظیمات فلش
+        function applyFlashSetting() {
+            if (track && 'torch' in track.getSettings()) {
+                try {
+                    track.applyConstraints({
+                        advanced: [{ torch: flashToggle.checked }]
+                    });
+                } catch (error) {
+                    console.error('خطا در کنترل فلش:', error);
+                }
             }
         }
 
@@ -259,13 +308,17 @@
         captureButton.addEventListener('click', () => {
             if (!isCameraActive) return;
             
-            const context = photoCanvas.getContext('2d');
-            photoCanvas.width = cameraPreview.videoWidth;
-            photoCanvas.height = cameraPreview.videoHeight;
-            context.drawImage(cameraPreview, 0, 0, photoCanvas.width, photoCanvas.height);
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
             
-            // نمایش عکس گرفته شده
-            capturedPhoto.src = photoCanvas.toDataURL('image/png');
+            // تنظیم سایز کانواس متناسب با ویدیو
+            canvas.width = cameraPreview.videoWidth;
+            canvas.height = cameraPreview.videoHeight;
+            
+            context.drawImage(cameraPreview, 0, 0, canvas.width, canvas.height);
+            
+            // نمایش عکس گرفته شده در همان کادر
+            capturedPhoto.src = canvas.toDataURL('image/png');
             capturedPhoto.classList.remove('hidden');
             cameraPreview.classList.add('hidden');
             
@@ -302,34 +355,9 @@
             }
         });
 
-        // Flash control
-        flashToggle.addEventListener('change', async () => {
-            if (stream) {
-                // متوقف کردن استریم فعلی
-                stream.getTracks().forEach(track => track.stop());
-                
-                // راه‌اندازی مجدد دوربین با تنظیمات فلش
-                try {
-                    const constraints = {
-                        video: {
-                            facingMode: 'environment',
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        },
-                        audio: false
-                    };
-                    
-                    if (flashToggle.checked) {
-                        constraints.video.torch = true;
-                    }
-                    
-                    stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    cameraPreview.srcObject = stream;
-                } catch (error) {
-                    console.error('خطا در تغییر وضعیت فلش:', error);
-                    flashToggle.checked = false;
-                }
-            }
+        // Flash control - روشن/خاموش کردن فلش درجا
+        flashToggle.addEventListener('change', () => {
+            applyFlashSetting();
         });
 
         // Validations
@@ -386,6 +414,13 @@
 
         // Initialize camera on page load
         window.addEventListener('load', initCamera);
+
+        // Clean up when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
     </script>
 </body>
 </html>
