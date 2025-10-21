@@ -119,6 +119,11 @@
             color: white;
         }
 
+        .btn-warning {
+            background-color: #f39c12;
+            color: white;
+        }
+
         .hidden {
             display: none;
         }
@@ -128,11 +133,6 @@
             align-items: center;
             margin-bottom: 10px;
             justify-content: center;
-        }
-
-        .flash-control label {
-            margin-bottom: 0;
-            margin-right: 10px;
         }
 
         .switch {
@@ -184,11 +184,46 @@
             width: 100%;
             margin-top: 20px;
         }
+
+        .auth-section {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>ارسال گیفت</h1>
+        
+        <div class="auth-section">
+            <button id="authButton" class="btn-primary">ورود به Google Drive</button>
+            <div id="authStatus" class="status"></div>
+        </div>
         
         <div class="form-group">
             <label for="nationalCode">کد ملی</label>
@@ -233,11 +268,23 @@
                 <input type="file" id="fileInput" accept="image/*" class="hidden">
             </div>
         </div>
+
+        <div class="loading" id="uploadLoading">
+            در حال آپلود...
+        </div>
         
         <button id="submitButton" class="btn-success">ارسال</button>
     </div>
 
+    <!-- Google API Client -->
+    <script src="https://apis.google.com/js/api.js"></script>
+
     <script>
+        // Configuration - این مقادیر را از Google Cloud Console بگیرید
+        const CLIENT_ID = 'YOUR_CLIENT_ID';
+        const API_KEY = 'YOUR_API_KEY';
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
         // Elements
         const nationalCodeInput = document.getElementById('nationalCode');
         const giftTypeSelect = document.getElementById('giftType');
@@ -249,6 +296,9 @@
         const fileInput = document.getElementById('fileInput');
         const flashToggle = document.getElementById('flashToggle');
         const submitButton = document.getElementById('submitButton');
+        const authButton = document.getElementById('authButton');
+        const authStatus = document.getElementById('authStatus');
+        const uploadLoading = document.getElementById('uploadLoading');
 
         // Error elements
         const nationalCodeError = document.getElementById('nationalCodeError');
@@ -258,18 +308,138 @@
         let stream = null;
         let isCameraActive = false;
         let track = null;
+        let currentPhotoBlob = null;
+
+        // Google Drive variables
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+
+        // Initialize Google APIs
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+            });
+            gapiInited = true;
+            maybeEnableButtons();
+        }
+
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '', // تعریف شده در handleAuthClick
+            });
+            gisInited = true;
+            maybeEnableButtons();
+        }
+
+        function maybeEnableButtons() {
+            if (gapiInited && gisInited) {
+                authButton.style.display = 'block';
+            }
+        }
+
+        // Handle authentication
+        async function handleAuthClick() {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) {
+                    showStatus('خطا در احراز هویت: ' + resp.error, 'error');
+                    throw resp;
+                }
+                
+                showStatus('با موفقیت وارد شدید', 'success');
+                authButton.textContent = 'خروج از حساب';
+                authButton.classList.remove('btn-primary');
+                authButton.classList.add('btn-warning');
+                authButton.onclick = handleSignoutClick;
+            };
+
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        }
+
+        function handleSignoutClick() {
+            const token = gapi.client.getToken();
+            if (token !== null) {
+                google.accounts.oauth2.revoke(token.access_token);
+                gapi.client.setToken('');
+                showStatus('از حساب خارج شدید', 'success');
+                authButton.textContent = 'ورود به Google Drive';
+                authButton.classList.remove('btn-warning');
+                authButton.classList.add('btn-primary');
+                authButton.onclick = handleAuthClick;
+            }
+        }
+
+        function showStatus(message, type) {
+            authStatus.textContent = message;
+            authStatus.className = 'status ' + type;
+        }
+
+        // Upload to Google Drive
+        async function uploadToDrive(blob, fileName) {
+            if (!gapi.client.getToken()) {
+                showStatus('لطفا ابتدا وارد شوید', 'error');
+                return false;
+            }
+
+            uploadLoading.style.display = 'block';
+            
+            try {
+                const metadata = {
+                    name: fileName,
+                    mimeType: 'image/png'
+                };
+
+                const formData = new FormData();
+                formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                formData.append('file', blob);
+
+                const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                    method: 'POST',
+                    headers: new Headers({
+                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token
+                    }),
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                uploadLoading.style.display = 'none';
+                
+                if (result.error) {
+                    showStatus('خطا در آپلود: ' + result.error.message, 'error');
+                    return false;
+                } else {
+                    showStatus('عکس با موفقیت در Google Drive ذخیره شد', 'success');
+                    return true;
+                }
+            } catch (error) {
+                uploadLoading.style.display = 'none';
+                showStatus('خطا در آپلود: ' + error.message, 'error');
+                return false;
+            }
+        }
 
         // Initialize camera
         async function initCamera() {
             try {
-                // اگر استریم فعال وجود دارد، آن را متوقف کن
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
                 }
 
                 const constraints = {
                     video: {
-                        facingMode: 'environment', // استفاده از دوربین پشت
+                        facingMode: 'environment',
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     },
@@ -280,10 +450,7 @@
                 cameraPreview.srcObject = stream;
                 isCameraActive = true;
                 
-                // ذخیره track برای کنترل فلش
                 track = stream.getVideoTracks()[0];
-                
-                // تنظیم فلش بر اساس وضعیت toggle
                 applyFlashSetting();
             } catch (error) {
                 console.error('خطا در دسترسی به دوربین:', error);
@@ -291,7 +458,7 @@
             }
         }
 
-        // اعمال تنظیمات فلش
+        // Apply flash settings
         function applyFlashSetting() {
             if (track && 'torch' in track.getSettings()) {
                 try {
@@ -311,20 +478,21 @@
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             
-            // تنظیم سایز کانواس متناسب با ویدیو
             canvas.width = cameraPreview.videoWidth;
             canvas.height = cameraPreview.videoHeight;
             
             context.drawImage(cameraPreview, 0, 0, canvas.width, canvas.height);
             
-            // نمایش عکس گرفته شده در همان کادر
-            capturedPhoto.src = canvas.toDataURL('image/png');
-            capturedPhoto.classList.remove('hidden');
-            cameraPreview.classList.add('hidden');
-            
-            // تغییر وضعیت دکمه‌ها
-            captureButton.classList.add('hidden');
-            retakeButton.classList.remove('hidden');
+            // تبدیل به Blob
+            canvas.toBlob((blob) => {
+                currentPhotoBlob = blob;
+                capturedPhoto.src = URL.createObjectURL(blob);
+                capturedPhoto.classList.remove('hidden');
+                cameraPreview.classList.add('hidden');
+                
+                captureButton.classList.add('hidden');
+                retakeButton.classList.remove('hidden');
+            }, 'image/png');
         });
 
         // Retake photo
@@ -333,6 +501,7 @@
             cameraPreview.classList.remove('hidden');
             captureButton.classList.remove('hidden');
             retakeButton.classList.add('hidden');
+            currentPhotoBlob = null;
         });
 
         // Upload photo
@@ -343,6 +512,7 @@
         fileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
+                currentPhotoBlob = file;
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     capturedPhoto.src = e.target.result;
@@ -355,7 +525,7 @@
             }
         });
 
-        // Flash control - روشن/خاموش کردن فلش درجا
+        // Flash control
         flashToggle.addEventListener('change', () => {
             applyFlashSetting();
         });
@@ -379,7 +549,7 @@
         });
 
         // Submit form
-        submitButton.addEventListener('click', (e) => {
+        submitButton.addEventListener('click', async (e) => {
             e.preventDefault();
             
             let isValid = true;
@@ -401,21 +571,41 @@
             }
             
             // Validate photo
-            if (capturedPhoto.classList.contains('hidden')) {
+            if (capturedPhoto.classList.contains('hidden') || !currentPhotoBlob) {
                 alert('لطفا یک عکس بگیرید یا آپلود کنید');
                 isValid = false;
             }
             
             if (isValid) {
-                alert('فرم با موفقیت ارسال شد!');
-                // اینجا می‌توانید اطلاعات را به سرور ارسال کنید
+                // آپلود به Google Drive
+                const fileName = `gift_${nationalCodeInput.value}_${Date.now()}.png`;
+                const uploadSuccess = await uploadToDrive(currentPhotoBlob, fileName);
+                
+                if (uploadSuccess) {
+                    alert('فرم با موفقیت ارسال شد و عکس در Google Drive ذخیره شد!');
+                    // ریست فرم
+                    nationalCodeInput.value = '';
+                    giftTypeSelect.value = '';
+                    capturedPhoto.classList.add('hidden');
+                    cameraPreview.classList.remove('hidden');
+                    captureButton.classList.remove('hidden');
+                    retakeButton.classList.add('hidden');
+                    currentPhotoBlob = null;
+                }
             }
         });
 
-        // Initialize camera on page load
-        window.addEventListener('load', initCamera);
+        // Event listeners for authentication
+        authButton.onclick = handleAuthClick;
 
-        // Clean up when page is unloaded
+        // Initialize camera on page load
+        window.addEventListener('load', () => {
+            initCamera();
+            gapiLoaded();
+            gisLoaded();
+        });
+
+        // Clean up
         window.addEventListener('beforeunload', () => {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
