@@ -107,6 +107,12 @@
       color: white;
       font-size: 18px;
     }
+    .test-section {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 5px;
+    }
   </style>
 </head>
 <body>
@@ -138,6 +144,12 @@
     <button id="submitButton" class="hidden" style="background:#2ecc71;">✅ ارسال</button>
     
     <div id="message" class="hidden"></div>
+
+    <div class="test-section">
+      <h3>تست اتصال</h3>
+      <button id="testConnectionButton" style="background:#9b59b6;">🔗 تست اتصال به سرور</button>
+      <div id="testResult" class="hidden"></div>
+    </div>
   </div>
 
   <script>
@@ -150,16 +162,46 @@
     const giftTypeSelect = document.getElementById("giftType");
     const messageDiv = document.getElementById("message");
     const cameraOverlay = document.getElementById("cameraOverlay");
+    const testConnectionButton = document.getElementById("testConnectionButton");
+    const testResult = document.getElementById("testResult");
 
     let stream;
     let isSubmitting = false;
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL61zGcSxY8IcVbfp2btJbgUgttNqKecD61RK1oi8DhMLMykXeI_EBKm42Xn8z37YP/exec";
+
+    // تابع تست اتصال
+    async function testConnection() {
+      testConnectionButton.disabled = true;
+      testConnectionButton.textContent = "⏳ در حال تست...";
+      testResult.classList.remove("hidden");
+      testResult.textContent = "در حال بررسی اتصال...";
+      testResult.className = "hidden";
+
+      try {
+        const response = await fetch(SCRIPT_URL, {
+          method: 'GET',
+          mode: 'no-cors'
+        });
+        
+        testResult.textContent = "✅ اتصال به سرور برقرار است";
+        testResult.className = "success-message";
+      } catch (error) {
+        testResult.textContent = "❌ خطا در اتصال به سرور: " + error.message;
+        testResult.className = "error-message";
+      } finally {
+        testConnectionButton.disabled = false;
+        testConnectionButton.textContent = "🔗 تست اتصال به سرور";
+      }
+    }
+
+    // بقیه توابع مانند قبل...
+    // [کدهای قبلی مربوط به دوربین، فشرده‌سازی عکس و ...]
 
     // تابع راه‌اندازی دوربین
     async function initCamera() {
       cameraOverlay.classList.remove("hidden");
       
       try {
-        // اول سعی می‌کنیم از دوربین پشتی استفاده کنیم
         stream = await navigator.mediaDevices.getUserMedia({ 
           video: { facingMode: "environment" }, 
           audio: false 
@@ -167,7 +209,6 @@
         cameraPreview.srcObject = stream;
         cameraOverlay.classList.add("hidden");
       } catch (e) {
-        // اگر دوربین پشتی در دسترس نبود، از دوربین جلو استفاده می‌کنیم
         try {
           stream = await navigator.mediaDevices.getUserMedia({ 
             video: { facingMode: "user" }, 
@@ -191,7 +232,6 @@
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           
-          // تنظیم سایز جدید برای کاهش حجم
           const maxWidth = 800;
           const maxHeight = 600;
           let width = img.width;
@@ -223,7 +263,6 @@
                             type === "error" ? "error-message" : "hidden";
       messageDiv.classList.remove("hidden");
       
-      // پنهان کردن خودکار پیام بعد از 5 ثانیه (به جز خطاها)
       if (type !== "error") {
         setTimeout(() => {
           messageDiv.classList.add("hidden");
@@ -241,47 +280,6 @@
       retakeButton.classList.add('hidden');
       submitButton.classList.add('hidden');
       messageDiv.classList.add('hidden');
-    }
-
-    // تابع ارسال داده به سرور
-    async function sendToServer(nationalCode, giftType, photo) {
-      // استفاده از دو آدرس مختلف برای تست
-      const urls = [
-        "https://script.google.com/macros/s/AKfycbw1Cv9EUfRCAGa4cWcmSr-SyBdT1Cf7jBPupEU1KafcSzNVy9bc6hVl4qsoWtiHXsay/exec",
-        "https://script.google.com/macros/s/AKfycbw1Cv9EUfRCAGa4cWcmSr-SyBdT1Cf7jBPupEU1KafcSzNVy9bc6hVl4qsoWtiHXsay/exec"
-      ];
-      
-      for (let i = 0; i < urls.length; i++) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 15000); // تایم‌اوت 15 ثانیه
-          
-          const response = await fetch(urls[i], {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ 
-              nationalCode, 
-              giftType, 
-              photo 
-            }),
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (!response.ok) {
-            throw new Error(`خطای HTTP: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          return data;
-        } catch (error) {
-          console.error(`Attempt ${i+1} failed:`, error);
-          if (i === urls.length - 1) throw error; // اگر همه تلاش‌ها شکست خورد
-        }
-      }
     }
 
     // رویداد گرفتن عکس
@@ -316,7 +314,6 @@
       const giftType = giftTypeSelect.value;
       const photo = capturedPhoto.src;
 
-      // اعتبارسنجی ورودی‌ها
       if (nationalCode.length !== 10 || !/^\d+$/.test(nationalCode)) {
         showMessage("کد ملی باید ۱۰ رقمی باشد", "error");
         return;
@@ -336,16 +333,29 @@
       document.body.classList.add("loading");
 
       try {
-        // فشرده‌سازی عکس قبل از ارسال
         const compressedPhoto = await compressImage(photo);
         
-        // ارسال داده به سرور
-        const data = await sendToServer(nationalCode, giftType, compressedPhoto);
+        const response = await fetch(SCRIPT_URL, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ 
+            nationalCode, 
+            giftType, 
+            photo: compressedPhoto 
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`خطای HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
         
         if (data.status === "success") {
           showMessage("✅ اطلاعات با موفقیت ارسال شد!", "success");
           console.log("File URL:", data.fileUrl);
-          // ریست فرم بعد از 3 ثانیه
           setTimeout(resetForm, 3000);
         } else {
           showMessage("❌ خطا در ارسال: " + (data.message || "خطای ناشناخته"), "error");
@@ -353,7 +363,6 @@
       } catch (err) {
         console.error("Error details:", err);
         
-        // تشخیص نوع خطا
         let errorMessage = "⚠️ خطای اتصال: ";
         if (err.name === "AbortError") {
           errorMessage += "اتصال timeout خورد. لطفاً اینترنت خود را بررسی کنید.";
@@ -372,33 +381,11 @@
       }
     });
 
-    // مدیریت دوربین هنگام تغییر visibility صفحه
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        // اگر صفحه پنهان شد، دوربین را خاموش کن
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
-      } else {
-        // اگر صفحه دوباره visible شد، دوربین را راه‌اندازی کن
-        if (!cameraPreview.srcObject) {
-          initCamera();
-        }
-      }
-    });
+    // رویداد تست اتصال
+    testConnectionButton.addEventListener("click", testConnection);
 
     // راه‌اندازی اولیه
     window.addEventListener("load", initCamera);
-    
-    // اضافه کردن اعتبارسنجی real-time برای کد ملی
-    nationalCodeInput.addEventListener("input", function() {
-      const value = this.value.trim();
-      if (value.length === 10 && /^\d+$/.test(value)) {
-        this.style.borderColor = "#2ecc71";
-      } else {
-        this.style.borderColor = "#ddd";
-      }
-    });
   </script>
 </body>
 </html>
