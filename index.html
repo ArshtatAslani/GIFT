@@ -1,616 +1,125 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>وب اپ ارسال گیفت</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: #f5f5f5;
-            padding: 20px;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
-        .container {
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #555;
-            font-weight: 500;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-
-        .error {
-            color: #e74c3c;
-            font-size: 12px;
-            margin-top: 5px;
-            display: none;
-        }
-
-        .camera-section {
-            margin-top: 30px;
-        }
-
-        .camera-container {
-            width: 100%;
-            height: 300px;
-            background-color: #000;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        #cameraPreview {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        #capturedPhoto {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            background-color: black;
-        }
-
-        .camera-controls {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.3s;
-            flex: 1;
-            min-width: 120px;
-        }
-
-        .btn-primary {
-            background-color: #3498db;
-            color: white;
-        }
-
-        .btn-secondary {
-            background-color: #95a5a6;
-            color: white;
-        }
-
-        .btn-success {
-            background-color: #2ecc71;
-            color: white;
-        }
-
-        .btn-warning {
-            background-color: #f39c12;
-            color: white;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .flash-control {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            justify-content: center;
-        }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 24px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 24px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: #3498db;
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-
-        #submitButton {
-            width: 100%;
-            margin-top: 20px;
-        }
-
-        .auth-section {
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 10px 0;
-        }
-
-        .status {
-            text-align: center;
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 5px;
-        }
-
-        .status.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ارسال گیفت</title>
+  <style>
+    /* تمام استایل‌ها مثل قبل */
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif}
+    body{background:#f5f5f5;padding:20px;max-width:500px;margin:0 auto}
+    .container{background:white;border-radius:10px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
+    h1{text-align:center;color:#333;margin-bottom:30px}
+    label{display:block;margin-bottom:5px;color:#555;font-weight:500}
+    input,select{width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;font-size:16px}
+    button{padding:10px 15px;border:none;border-radius:5px;cursor:pointer;font-size:14px;transition:.3s;background:#3498db;color:white;width:100%}
+    .camera-container{width:100%;height:300px;background:#000;border-radius:5px;overflow:hidden;margin:10px 0}
+    video,img{width:100%;height:100%;object-fit:cover}
+    .hidden{display:none}
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>ارسال گیفت</h1>
-        
-        <div class="auth-section">
-            <button id="authButton" class="btn-primary">ورود به Google Drive</button>
-            <div id="authStatus" class="status"></div>
-        </div>
-        
-        <div class="form-group">
-            <label for="nationalCode">کد ملی</label>
-            <input type="text" id="nationalCode" maxlength="10" placeholder="کد ملی 10 رقمی">
-            <div class="error" id="nationalCodeError">کد ملی باید 10 رقم باشد</div>
-        </div>
-        
-        <div class="form-group">
-            <label for="giftType">نوع گیفت</label>
-            <select id="giftType">
-                <option value="">لطفا انتخاب کنید</option>
-                <option value="type1">نوع اول</option>
-                <option value="type2">نوع دوم</option>
-                <option value="type3">نوع سوم</option>
-                <option value="type4">نوع چهارم</option>
-            </select>
-            <div class="error" id="giftTypeError">لطفا نوع گیفت را انتخاب کنید</div>
-        </div>
-        
-        <div class="form-group">
-            <label>عکس</label>
-            <div class="camera-section">
-                <div class="camera-container">
-                    <video id="cameraPreview" autoplay playsinline></video>
-                    <img id="capturedPhoto" class="hidden" alt="عکس گرفته شده">
-                </div>
-                
-                <div class="flash-control">
-                    <label for="flashToggle">فلش</label>
-                    <label class="switch">
-                        <input type="checkbox" id="flashToggle">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                
-                <div class="camera-controls">
-                    <button id="captureButton" class="btn-primary">عکس بگیر</button>
-                    <button id="retakeButton" class="btn-secondary hidden">عکس مجدد</button>
-                    <button id="uploadButton" class="btn-success">آپلود عکس</button>
-                </div>
-                
-                <input type="file" id="fileInput" accept="image/*" class="hidden">
-            </div>
-        </div>
+  <div class="container">
+    <h1>ارسال گیفت</h1>
 
-        <div class="loading" id="uploadLoading">
-            در حال آپلود...
-        </div>
-        
-        <button id="submitButton" class="btn-success">ارسال</button>
+    <label for="nationalCode">کد ملی</label>
+    <input id="nationalCode" maxlength="10" placeholder="کد ملی 10 رقمی">
+
+    <label for="giftType">نوع گیفت</label>
+    <select id="giftType">
+      <option value="">انتخاب کنید</option>
+      <option value="type1">نوع اول</option>
+      <option value="type2">نوع دوم</option>
+      <option value="type3">نوع سوم</option>
+      <option value="type4">نوع چهارم</option>
+    </select>
+
+    <div class="camera-container">
+      <video id="cameraPreview" autoplay playsinline></video>
+      <img id="capturedPhoto" class="hidden" alt="captured photo">
     </div>
 
-    <!-- Google API Client -->
-    <script src="https://apis.google.com/js/api.js"></script>
+    <button id="captureButton">📸 عکس بگیر</button>
+    <button id="retakeButton" class="hidden">🔁 عکس مجدد</button>
+    <button id="submitButton" class="hidden" style="background:#2ecc71;">✅ ارسال</button>
+  </div>
 
-    <script>
-        // Configuration - این مقادیر را از Google Cloud Console بگیرید
-        const CLIENT_ID = 'YOUR_CLIENT_ID';
-        const API_KEY = 'YOUR_API_KEY';
-        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+  <script>
+    const cameraPreview = document.getElementById("cameraPreview");
+    const capturedPhoto = document.getElementById("capturedPhoto");
+    const captureButton = document.getElementById("captureButton");
+    const retakeButton = document.getElementById("retakeButton");
+    const submitButton = document.getElementById("submitButton");
+    const nationalCodeInput = document.getElementById("nationalCode");
+    const giftTypeSelect = document.getElementById("giftType");
 
-        // Elements
-        const nationalCodeInput = document.getElementById('nationalCode');
-        const giftTypeSelect = document.getElementById('giftType');
-        const cameraPreview = document.getElementById('cameraPreview');
-        const capturedPhoto = document.getElementById('capturedPhoto');
-        const captureButton = document.getElementById('captureButton');
-        const retakeButton = document.getElementById('retakeButton');
-        const uploadButton = document.getElementById('uploadButton');
-        const fileInput = document.getElementById('fileInput');
-        const flashToggle = document.getElementById('flashToggle');
-        const submitButton = document.getElementById('submitButton');
-        const authButton = document.getElementById('authButton');
-        const authStatus = document.getElementById('authStatus');
-        const uploadLoading = document.getElementById('uploadLoading');
+    let stream;
 
-        // Error elements
-        const nationalCodeError = document.getElementById('nationalCodeError');
-        const giftTypeError = document.getElementById('giftTypeError');
+    async function initCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        cameraPreview.srcObject = stream;
+      } catch (e) {
+        alert("دسترسی به دوربین ممکن نیست");
+      }
+    }
 
-        // Camera variables
-        let stream = null;
-        let isCameraActive = false;
-        let track = null;
-        let currentPhotoBlob = null;
+    captureButton.addEventListener("click", () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = cameraPreview.videoWidth;
+      canvas.height = cameraPreview.videoHeight;
+      canvas.getContext("2d").drawImage(cameraPreview, 0, 0);
+      capturedPhoto.src = canvas.toDataURL("image/png");
+      capturedPhoto.classList.remove("hidden");
+      cameraPreview.classList.add("hidden");
+      captureButton.classList.add("hidden");
+      retakeButton.classList.remove("hidden");
+      submitButton.classList.remove("hidden");
+    });
 
-        // Google Drive variables
-        let tokenClient;
-        let gapiInited = false;
-        let gisInited = false;
+    retakeButton.addEventListener("click", () => {
+      capturedPhoto.classList.add("hidden");
+      cameraPreview.classList.remove("hidden");
+      captureButton.classList.remove("hidden");
+      retakeButton.classList.add("hidden");
+      submitButton.classList.add("hidden");
+    });
 
-        // Initialize Google APIs
-        function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
-        }
+    submitButton.addEventListener("click", async () => {
+      const nationalCode = nationalCodeInput.value.trim();
+      const giftType = giftTypeSelect.value;
+      const photo = capturedPhoto.src;
 
-        async function initializeGapiClient() {
-            await gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-            });
-            gapiInited = true;
-            maybeEnableButtons();
-        }
+      if (nationalCode.length !== 10 || !/^\d+$/.test(nationalCode)) return alert("کد ملی باید ۱۰ رقمی باشد");
+      if (!giftType) return alert("نوع گیفت را انتخاب کنید");
+      if (!photo) return alert("عکسی گرفته نشده");
 
-        function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: '', // تعریف شده در handleAuthClick
-            });
-            gisInited = true;
-            maybeEnableButtons();
-        }
+      submitButton.disabled = true;
+      submitButton.textContent = "⏳ در حال ارسال...";
 
-        function maybeEnableButtons() {
-            if (gapiInited && gisInited) {
-                authButton.style.display = 'block';
-            }
-        }
-
-        // Handle authentication
-        async function handleAuthClick() {
-            tokenClient.callback = async (resp) => {
-                if (resp.error !== undefined) {
-                    showStatus('خطا در احراز هویت: ' + resp.error, 'error');
-                    throw resp;
-                }
-                
-                showStatus('با موفقیت وارد شدید', 'success');
-                authButton.textContent = 'خروج از حساب';
-                authButton.classList.remove('btn-primary');
-                authButton.classList.add('btn-warning');
-                authButton.onclick = handleSignoutClick;
-            };
-
-            if (gapi.client.getToken() === null) {
-                tokenClient.requestAccessToken({prompt: 'consent'});
-            } else {
-                tokenClient.requestAccessToken({prompt: ''});
-            }
-        }
-
-        function handleSignoutClick() {
-            const token = gapi.client.getToken();
-            if (token !== null) {
-                google.accounts.oauth2.revoke(token.access_token);
-                gapi.client.setToken('');
-                showStatus('از حساب خارج شدید', 'success');
-                authButton.textContent = 'ورود به Google Drive';
-                authButton.classList.remove('btn-warning');
-                authButton.classList.add('btn-primary');
-                authButton.onclick = handleAuthClick;
-            }
-        }
-
-        function showStatus(message, type) {
-            authStatus.textContent = message;
-            authStatus.className = 'status ' + type;
-        }
-
-        // Upload to Google Drive
-        async function uploadToDrive(blob, fileName) {
-            if (!gapi.client.getToken()) {
-                showStatus('لطفا ابتدا وارد شوید', 'error');
-                return false;
-            }
-
-            uploadLoading.style.display = 'block';
-            
-            try {
-                const metadata = {
-                    name: fileName,
-                    mimeType: 'image/png'
-                };
-
-                const formData = new FormData();
-                formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                formData.append('file', blob);
-
-                const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                    method: 'POST',
-                    headers: new Headers({
-                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token
-                    }),
-                    body: formData
-                });
-
-                const result = await response.json();
-                
-                uploadLoading.style.display = 'none';
-                
-                if (result.error) {
-                    showStatus('خطا در آپلود: ' + result.error.message, 'error');
-                    return false;
-                } else {
-                    showStatus('عکس با موفقیت در Google Drive ذخیره شد', 'success');
-                    return true;
-                }
-            } catch (error) {
-                uploadLoading.style.display = 'none';
-                showStatus('خطا در آپلود: ' + error.message, 'error');
-                return false;
-            }
-        }
-
-        // Initialize camera
-        async function initCamera() {
-            try {
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                }
-
-                const constraints = {
-                    video: {
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    },
-                    audio: false
-                };
-                
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                cameraPreview.srcObject = stream;
-                isCameraActive = true;
-                
-                track = stream.getVideoTracks()[0];
-                applyFlashSetting();
-            } catch (error) {
-                console.error('خطا در دسترسی به دوربین:', error);
-                alert('دسترسی به دوربین ممکن نیست');
-            }
-        }
-
-        // Apply flash settings
-        function applyFlashSetting() {
-            if (track && 'torch' in track.getSettings()) {
-                try {
-                    track.applyConstraints({
-                        advanced: [{ torch: flashToggle.checked }]
-                    });
-                } catch (error) {
-                    console.error('خطا در کنترل فلش:', error);
-                }
-            }
-        }
-
-        // Capture photo
-        captureButton.addEventListener('click', () => {
-            if (!isCameraActive) return;
-            
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            
-            canvas.width = cameraPreview.videoWidth;
-            canvas.height = cameraPreview.videoHeight;
-            
-            context.drawImage(cameraPreview, 0, 0, canvas.width, canvas.height);
-            
-            // تبدیل به Blob
-            canvas.toBlob((blob) => {
-                currentPhotoBlob = blob;
-                capturedPhoto.src = URL.createObjectURL(blob);
-                capturedPhoto.classList.remove('hidden');
-                cameraPreview.classList.add('hidden');
-                
-                captureButton.classList.add('hidden');
-                retakeButton.classList.remove('hidden');
-            }, 'image/png');
+      try {
+        const res = await fetch("https://script.google.com/macros/s/AKfycbw1Cv9EUfRCAGa4cWcmSr-SyBdT1Cf7jBPupEU1KafcSzNVy9bc6hVl4qsoWtiHXsay/exec", { // 👈 لینک Web App از مرحله ۱
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nationalCode, giftType, photo })
         });
 
-        // Retake photo
-        retakeButton.addEventListener('click', () => {
-            capturedPhoto.classList.add('hidden');
-            cameraPreview.classList.remove('hidden');
-            captureButton.classList.remove('hidden');
-            retakeButton.classList.add('hidden');
-            currentPhotoBlob = null;
-        });
+        const data = await res.json();
+        if (data.status === "success") {
+          alert("✅ عکس با موفقیت در گوگل‌درایو ذخیره شد!");
+          console.log("File URL:", data.fileUrl);
+        } else {
+          alert("❌ خطا در ارسال: " + data.message);
+        }
+      } catch (err) {
+        alert("⚠️ خطای اتصال: " + err.message);
+      }
 
-        // Upload photo
-        uploadButton.addEventListener('click', () => {
-            fileInput.click();
-        });
+      submitButton.disabled = false;
+      submitButton.textContent = "✅ ارسال";
+    });
 
-        fileInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                currentPhotoBlob = file;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    capturedPhoto.src = e.target.result;
-                    capturedPhoto.classList.remove('hidden');
-                    cameraPreview.classList.add('hidden');
-                    captureButton.classList.add('hidden');
-                    retakeButton.classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // Flash control
-        flashToggle.addEventListener('change', () => {
-            applyFlashSetting();
-        });
-
-        // Validations
-        nationalCodeInput.addEventListener('input', (e) => {
-            const value = e.target.value;
-            if (value.length !== 10 || !/^\d+$/.test(value)) {
-                nationalCodeError.style.display = 'block';
-            } else {
-                nationalCodeError.style.display = 'none';
-            }
-        });
-
-        giftTypeSelect.addEventListener('change', (e) => {
-            if (e.target.value === '') {
-                giftTypeError.style.display = 'block';
-            } else {
-                giftTypeError.style.display = 'none';
-            }
-        });
-
-        // Submit form
-        submitButton.addEventListener('click', async (e) => {
-            e.preventDefault();
-            
-            let isValid = true;
-            
-            // Validate national code
-            if (nationalCodeInput.value.length !== 10 || !/^\d+$/.test(nationalCodeInput.value)) {
-                nationalCodeError.style.display = 'block';
-                isValid = false;
-            } else {
-                nationalCodeError.style.display = 'none';
-            }
-            
-            // Validate gift type
-            if (giftTypeSelect.value === '') {
-                giftTypeError.style.display = 'block';
-                isValid = false;
-            } else {
-                giftTypeError.style.display = 'none';
-            }
-            
-            // Validate photo
-            if (capturedPhoto.classList.contains('hidden') || !currentPhotoBlob) {
-                alert('لطفا یک عکس بگیرید یا آپلود کنید');
-                isValid = false;
-            }
-            
-            if (isValid) {
-                // آپلود به Google Drive
-                const fileName = `gift_${nationalCodeInput.value}_${Date.now()}.png`;
-                const uploadSuccess = await uploadToDrive(currentPhotoBlob, fileName);
-                
-                if (uploadSuccess) {
-                    alert('فرم با موفقیت ارسال شد و عکس در Google Drive ذخیره شد!');
-                    // ریست فرم
-                    nationalCodeInput.value = '';
-                    giftTypeSelect.value = '';
-                    capturedPhoto.classList.add('hidden');
-                    cameraPreview.classList.remove('hidden');
-                    captureButton.classList.remove('hidden');
-                    retakeButton.classList.add('hidden');
-                    currentPhotoBlob = null;
-                }
-            }
-        });
-
-        // Event listeners for authentication
-        authButton.onclick = handleAuthClick;
-
-        // Initialize camera on page load
-        window.addEventListener('load', () => {
-            initCamera();
-            gapiLoaded();
-            gisLoaded();
-        });
-
-        // Clean up
-        window.addEventListener('beforeunload', () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-        });
-    </script>
+    window.addEventListener("load", initCamera);
+  </script>
 </body>
 </html>
