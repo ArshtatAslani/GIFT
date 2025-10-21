@@ -119,6 +119,12 @@
       background: #f8f9fa;
       border-radius: 5px;
     }
+    .url-selector {
+      margin: 10px 0;
+    }
+    .url-selector select {
+      margin-bottom: 10px;
+    }
     .debug-info {
       margin-top: 10px;
       padding: 10px;
@@ -126,6 +132,8 @@
       border-radius: 5px;
       font-size: 12px;
       color: #666;
+      max-height: 200px;
+      overflow-y: auto;
     }
   </style>
 </head>
@@ -160,18 +168,29 @@
     <div id="message" class="hidden"></div>
 
     <div class="test-section">
-      <h3>تست اتصال</h3>
+      <h3>تنظیمات سرور</h3>
+      <div class="url-selector">
+        <label>انتخاب URL سرور:</label>
+        <select id="serverUrlSelector">
+          <option value="custom">URL دلخواه</option>
+          <option value="https://script.google.com/macros/s/AKfycbwc-SX2sUqHFTFELQsTPG0Ptmex6czSYj2PB5ivIvly3MHi7mqhpo6dzZ7RFNssMPlv/exec">سرور اصلی</option>
+        </select>
+        <input type="text" id="customServerUrl" placeholder="https://script.google.com/macros/s/your-script-id/exec" class="hidden">
+      </div>
+      
       <button id="testConnectionButton" style="background:#9b59b6;">🔗 تست اتصال به سرور</button>
+      <button id="createNewScriptButton" style="background:#e67e22;">🆕 راهنمای ایجاد اسکریپت جدید</button>
       <div id="testResult" class="hidden"></div>
     </div>
 
-    <div class="debug-info hidden" id="debugInfo">
+    <div class="debug-info" id="debugInfo">
       <strong>اطلاعات دیباگ:</strong>
-      <div id="debugContent"></div>
+      <div id="debugContent">صفحه بارگذاری شد...</div>
     </div>
   </div>
 
   <script>
+    // عناصر DOM
     const cameraPreview = document.getElementById("cameraPreview");
     const capturedPhoto = document.getElementById("capturedPhoto");
     const captureButton = document.getElementById("captureButton");
@@ -185,37 +204,58 @@
     const testResult = document.getElementById("testResult");
     const debugInfo = document.getElementById("debugInfo");
     const debugContent = document.getElementById("debugContent");
+    const serverUrlSelector = document.getElementById("serverUrlSelector");
+    const customServerUrl = document.getElementById("customServerUrl");
 
     let stream;
     let isSubmitting = false;
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzNEufejKUqaqAQWGw_hnHSpTcsKI2ItzwtifsOpOpQ0d8UHPA486WMupzW-IHHrG9j/exec";
-
-    // فعال کردن دیباگ
-    function enableDebug() {
-      debugInfo.classList.remove("hidden");
-    }
+    let currentScriptUrl = "https://script.google.com/macros/s/AKfycbw1Cv9EUfRCAGa4cWcmSr-SyBdT1Cf7jBPupEU1KafcSzNVy9bc6hVl4qsoWtiHXsay/exec";
 
     // افزودن اطلاعات دیباگ
     function addDebugInfo(message) {
       const timestamp = new Date().toLocaleTimeString();
-      debugContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+      debugContent.innerHTML = `<div>[${timestamp}] ${message}</div>` + debugContent.innerHTML;
+    }
+
+    // دریافت URL سرور فعلی
+    function getCurrentServerUrl() {
+      if (serverUrlSelector.value === 'custom') {
+        return customServerUrl.value.trim();
+      }
+      return serverUrlSelector.value;
     }
 
     // تابع تست اتصال
     async function testConnection() {
+      const url = getCurrentServerUrl();
+      
+      if (!url) {
+        testResult.textContent = "❌ لطفاً URL سرور را وارد کنید";
+        testResult.className = "error-message";
+        testResult.classList.remove("hidden");
+        return;
+      }
+
       testConnectionButton.disabled = true;
       testConnectionButton.textContent = "⏳ در حال تست...";
       testResult.classList.remove("hidden");
       testResult.textContent = "در حال بررسی اتصال...";
-      testResult.className = "hidden";
       
-      addDebugInfo("شروع تست اتصال به سرور");
+      addDebugInfo(`تست اتصال به: ${url}`);
 
       try {
-        const response = await fetch(SCRIPT_URL);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
-          throw new Error(`خطای HTTP: ${response.status}`);
+          throw new Error(`خطای HTTP: ${response.status} - ${response.statusText}`);
         }
         
         const data = await response.json();
@@ -223,6 +263,7 @@
         if (data.status === 'success') {
           testResult.textContent = "✅ اتصال به سرور برقرار است";
           testResult.className = "success-message";
+          currentScriptUrl = url;
           addDebugInfo("تست اتصال موفقیت‌آمیز بود");
         } else {
           throw new Error(data.message || 'خطای ناشناخته از سرور');
@@ -230,12 +271,70 @@
       } catch (error) {
         testResult.textContent = "❌ خطا در اتصال به سرور: " + error.message;
         testResult.className = "error-message";
-        addDebugInfo("خطا در تست اتصال: " + error.message);
-        enableDebug();
+        addDebugInfo(`خطا در تست اتصال: ${error.message}`);
+        
+        if (error.name === "AbortError") {
+          addDebugInfo("تست اتصال timeout خورد - سرور پاسخ نمی‌دهد");
+        }
       } finally {
         testConnectionButton.disabled = false;
         testConnectionButton.textContent = "🔗 تست اتصال به سرور";
       }
+    }
+
+    // نمایش راهنمای ایجاد اسکریپت جدید
+    function showNewScriptGuide() {
+      const guide = `
+        <h3>🆕 راهنمای ایجاد اسکریپت جدید</h3>
+        <ol>
+          <li>به <a href="https://script.google.com" target="_blank">Google Apps Script</a> بروید</li>
+          <li>روی "New Project" کلیک کنید</li>
+          <li>کد ارائه شده را جایگزین کنید</li>
+          <li>روی "Deploy" → "New deployment" کلیک کنید</li>
+          <li>نوع: "Web app" را انتخاب کنید</li>
+          <li>Execute as: "Me"</li>
+          <li>Who has access: <strong>"Anyone"</strong></li>
+          <li>روی "Deploy" کلیک کنید</li>
+          <li>URL جدید را کپی کرده و در فیلد بالا وارد کنید</li>
+        </ol>
+        <button onclick="document.getElementById('guideModal').classList.add('hidden')">بستن</button>
+      `;
+      
+      const modal = document.createElement('div');
+      modal.id = 'guideModal';
+      modal.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        z-index: 1000;
+        max-width: 90%;
+        max-height: 90%;
+        overflow-y: auto;
+      `;
+      modal.innerHTML = guide;
+      
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 999;
+      `;
+      overlay.onclick = () => {
+        document.body.removeChild(modal);
+        document.body.removeChild(overlay);
+      };
+      
+      document.body.appendChild(overlay);
+      document.body.appendChild(modal);
     }
 
     // تابع راه‌اندازی دوربین
@@ -265,7 +364,6 @@
           showMessage("دسترسی به دوربین ممکن نیست. لطفاً مجوز دسترسی را بررسی کنید.", "error");
           cameraOverlay.textContent = "دوربین در دسترس نیست";
           addDebugInfo("خطا در راه‌اندازی دوربین: " + error.message);
-          console.error("Camera error:", error);
         }
       }
     }
@@ -365,6 +463,12 @@
       const nationalCode = nationalCodeInput.value.trim();
       const giftType = giftTypeSelect.value;
       const photo = capturedPhoto.src;
+      const url = getCurrentServerUrl();
+
+      if (!url) {
+        showMessage("لطفاً URL سرور را تنظیم کنید", "error");
+        return;
+      }
 
       // اعتبارسنجی ورودی‌ها
       if (nationalCode.length !== 10 || !/^\d+$/.test(nationalCode)) {
@@ -385,17 +489,17 @@
       submitButton.textContent = "⏳ در حال ارسال...";
       document.body.classList.add("loading");
 
-      addDebugInfo("شروع ارسال داده به سرور");
-      addDebugInfo(`داده‌ها: کدملی=${nationalCode}, نوع گیفت=${giftType}, اندازه عکس=${photo.length} کاراکتر`);
+      addDebugInfo(`شروع ارسال داده به: ${url}`);
+      addDebugInfo(`داده‌ها: کدملی=${nationalCode}, نوع گیفت=${giftType}`);
 
       try {
         const compressedPhoto = await compressImage(photo);
-        addDebugInfo(`عکس فشرده شد: ${compressedPhoto.length} کاراکتر`);
+        addDebugInfo(`عکس فشرده شد: ${Math.round(compressedPhoto.length/1024)} KB`);
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // تایم‌اوت 30 ثانیه
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
         
-        const response = await fetch(SCRIPT_URL, {
+        const response = await fetch(url, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json"
@@ -417,7 +521,7 @@
         }
 
         const data = await response.json();
-        addDebugInfo(`داده‌های پاسخ: ${JSON.stringify(data)}`);
+        addDebugInfo(`پاسخ سرور: ${JSON.stringify(data)}`);
         
         if (data.status === "success") {
           showMessage("✅ اطلاعات با موفقیت ارسال شد!", "success");
@@ -425,7 +529,6 @@
           setTimeout(resetForm, 3000);
         } else {
           showMessage("❌ خطا در ارسال: " + (data.message || "خطای ناشناخته"), "error");
-          enableDebug();
         }
       } catch (err) {
         console.error("Error details:", err);
@@ -433,15 +536,14 @@
         
         let errorMessage = "⚠️ خطای اتصال: ";
         if (err.name === "AbortError") {
-          errorMessage += "اتصال timeout خورد. لطفاً اینترنت خود را بررسی کنید.";
+          errorMessage += "اتصال timeout خورد (۳۰ ثانیه). لطفاً اینترنت خود را بررسی کنید.";
         } else if (err.message.includes("Failed to fetch")) {
-          errorMessage += "ارتباط با سرور برقرار نشد. لطفاً اتصال اینترنت خود را بررسی کنید.";
+          errorMessage += "ارتباط با سرور برقرار نشد. لطفاً URL سرور را بررسی کنید.";
         } else {
           errorMessage += err.message;
         }
         
         showMessage(errorMessage, "error");
-        enableDebug();
       } finally {
         isSubmitting = false;
         submitButton.disabled = false;
@@ -450,14 +552,24 @@
       }
     });
 
-    // رویداد تست اتصال
+    // رویداد تغییر انتخاب URL
+    serverUrlSelector.addEventListener("change", function() {
+      if (this.value === 'custom') {
+        customServerUrl.classList.remove("hidden");
+      } else {
+        customServerUrl.classList.add("hidden");
+        currentScriptUrl = this.value;
+      }
+    });
+
+    // رویدادهای دکمه‌ها
     testConnectionButton.addEventListener("click", testConnection);
+    document.getElementById("createNewScriptButton").addEventListener("click", showNewScriptGuide);
 
     // راه‌اندازی اولیه
     window.addEventListener("load", () => {
       initCamera();
-      enableDebug();
-      addDebugInfo("صفحه بارگذاری شد");
+      addDebugInfo("صفحه بارگذاری شد - آماده استفاده");
     });
 
     // اعتبارسنجی real-time کد ملی
