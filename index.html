@@ -42,12 +42,18 @@
       font-size: 16px;
       margin-bottom: 15px;
     }
+    input:valid {
+      border-color: #2ecc71;
+    }
+    input:invalid {
+      border-color: #e74c3c;
+    }
     button {
-      padding: 10px 15px;
+      padding: 12px 15px;
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 16px;
       transition: 0.3s;
       background: #3498db;
       color: white;
@@ -113,6 +119,14 @@
       background: #f8f9fa;
       border-radius: 5px;
     }
+    .debug-info {
+      margin-top: 10px;
+      padding: 10px;
+      background: #f1f1f1;
+      border-radius: 5px;
+      font-size: 12px;
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -120,10 +134,10 @@
     <h1>ارسال گیفت</h1>
 
     <label for="nationalCode">کد ملی</label>
-    <input id="nationalCode" maxlength="10" placeholder="کد ملی 10 رقمی" type="text">
+    <input id="nationalCode" maxlength="10" placeholder="کد ملی 10 رقمی" type="text" pattern="\d{10}" required>
 
     <label for="giftType">نوع گیفت</label>
-    <select id="giftType">
+    <select id="giftType" required>
       <option value="">انتخاب کنید</option>
       <option value="type1">نوع اول</option>
       <option value="type2">نوع دوم</option>
@@ -150,6 +164,11 @@
       <button id="testConnectionButton" style="background:#9b59b6;">🔗 تست اتصال به سرور</button>
       <div id="testResult" class="hidden"></div>
     </div>
+
+    <div class="debug-info hidden" id="debugInfo">
+      <strong>اطلاعات دیباگ:</strong>
+      <div id="debugContent"></div>
+    </div>
   </div>
 
   <script>
@@ -164,10 +183,23 @@
     const cameraOverlay = document.getElementById("cameraOverlay");
     const testConnectionButton = document.getElementById("testConnectionButton");
     const testResult = document.getElementById("testResult");
+    const debugInfo = document.getElementById("debugInfo");
+    const debugContent = document.getElementById("debugContent");
 
     let stream;
     let isSubmitting = false;
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL61zGcSxY8IcVbfp2btJbgUgttNqKecD61RK1oi8DhMLMykXeI_EBKm42Xn8z37YP/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzNEufejKUqaqAQWGw_hnHSpTcsKI2ItzwtifsOpOpQ0d8UHPA486WMupzW-IHHrG9j/exec";
+
+    // فعال کردن دیباگ
+    function enableDebug() {
+      debugInfo.classList.remove("hidden");
+    }
+
+    // افزودن اطلاعات دیباگ
+    function addDebugInfo(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      debugContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+    }
 
     // تابع تست اتصال
     async function testConnection() {
@@ -176,30 +208,40 @@
       testResult.classList.remove("hidden");
       testResult.textContent = "در حال بررسی اتصال...";
       testResult.className = "hidden";
+      
+      addDebugInfo("شروع تست اتصال به سرور");
 
       try {
-        const response = await fetch(SCRIPT_URL, {
-          method: 'GET',
-          mode: 'no-cors'
-        });
+        const response = await fetch(SCRIPT_URL);
         
-        testResult.textContent = "✅ اتصال به سرور برقرار است";
-        testResult.className = "success-message";
+        if (!response.ok) {
+          throw new Error(`خطای HTTP: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+          testResult.textContent = "✅ اتصال به سرور برقرار است";
+          testResult.className = "success-message";
+          addDebugInfo("تست اتصال موفقیت‌آمیز بود");
+        } else {
+          throw new Error(data.message || 'خطای ناشناخته از سرور');
+        }
       } catch (error) {
         testResult.textContent = "❌ خطا در اتصال به سرور: " + error.message;
         testResult.className = "error-message";
+        addDebugInfo("خطا در تست اتصال: " + error.message);
+        enableDebug();
       } finally {
         testConnectionButton.disabled = false;
         testConnectionButton.textContent = "🔗 تست اتصال به سرور";
       }
     }
 
-    // بقیه توابع مانند قبل...
-    // [کدهای قبلی مربوط به دوربین، فشرده‌سازی عکس و ...]
-
     // تابع راه‌اندازی دوربین
     async function initCamera() {
       cameraOverlay.classList.remove("hidden");
+      addDebugInfo("شروع راه‌اندازی دوربین");
       
       try {
         stream = await navigator.mediaDevices.getUserMedia({ 
@@ -208,17 +250,21 @@
         });
         cameraPreview.srcObject = stream;
         cameraOverlay.classList.add("hidden");
+        addDebugInfo("دوربین با موفقیت راه‌اندازی شد");
       } catch (e) {
         try {
+          addDebugInfo("دوربین پشتی یافت نشد، تلاش با دوربین جلو");
           stream = await navigator.mediaDevices.getUserMedia({ 
             video: { facingMode: "user" }, 
             audio: false 
           });
           cameraPreview.srcObject = stream;
           cameraOverlay.classList.add("hidden");
+          addDebugInfo("دوربین جلو با موفقیت راه‌اندازی شد");
         } catch (error) {
           showMessage("دسترسی به دوربین ممکن نیست. لطفاً مجوز دسترسی را بررسی کنید.", "error");
           cameraOverlay.textContent = "دوربین در دسترس نیست";
+          addDebugInfo("خطا در راه‌اندازی دوربین: " + error.message);
           console.error("Camera error:", error);
         }
       }
@@ -250,6 +296,7 @@
           canvas.height = height;
           
           ctx.drawImage(img, 0, 0, width, height);
+          addDebugInfo(`عکس فشرده شد: ${width}x${height} - کیفیت: ${quality}`);
           resolve(canvas.toDataURL('image/jpeg', quality));
         };
         img.src = dataUrl;
@@ -262,6 +309,8 @@
       messageDiv.className = type === "success" ? "success-message" : 
                             type === "error" ? "error-message" : "hidden";
       messageDiv.classList.remove("hidden");
+      
+      addDebugInfo(`پیام نمایش داده شد: ${text} (نوع: ${type})`);
       
       if (type !== "error") {
         setTimeout(() => {
@@ -280,6 +329,7 @@
       retakeButton.classList.add('hidden');
       submitButton.classList.add('hidden');
       messageDiv.classList.add('hidden');
+      addDebugInfo("فرم ریست شد");
     }
 
     // رویداد گرفتن عکس
@@ -294,6 +344,7 @@
       captureButton.classList.add("hidden");
       retakeButton.classList.remove("hidden");
       submitButton.classList.remove("hidden");
+      addDebugInfo("عکس گرفته شد");
     });
 
     // رویداد عکس مجدد
@@ -304,6 +355,7 @@
       retakeButton.classList.add("hidden");
       submitButton.classList.add("hidden");
       messageDiv.classList.add("hidden");
+      addDebugInfo("عکس مجدد");
     });
 
     // رویداد ارسال فرم
@@ -314,6 +366,7 @@
       const giftType = giftTypeSelect.value;
       const photo = capturedPhoto.src;
 
+      // اعتبارسنجی ورودی‌ها
       if (nationalCode.length !== 10 || !/^\d+$/.test(nationalCode)) {
         showMessage("کد ملی باید ۱۰ رقمی باشد", "error");
         return;
@@ -332,8 +385,15 @@
       submitButton.textContent = "⏳ در حال ارسال...";
       document.body.classList.add("loading");
 
+      addDebugInfo("شروع ارسال داده به سرور");
+      addDebugInfo(`داده‌ها: کدملی=${nationalCode}, نوع گیفت=${giftType}, اندازه عکس=${photo.length} کاراکتر`);
+
       try {
         const compressedPhoto = await compressImage(photo);
+        addDebugInfo(`عکس فشرده شد: ${compressedPhoto.length} کاراکتر`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // تایم‌اوت 30 ثانیه
         
         const response = await fetch(SCRIPT_URL, {
           method: "POST",
@@ -344,14 +404,20 @@
             nationalCode, 
             giftType, 
             photo: compressedPhoto 
-          })
+          }),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
+        
+        addDebugInfo(`پاسخ سرور دریافت شد: وضعیت ${response.status}`);
 
         if (!response.ok) {
-          throw new Error(`خطای HTTP: ${response.status}`);
+          throw new Error(`خطای HTTP: ${response.status} - ${response.statusText}`);
         }
 
         const data = await response.json();
+        addDebugInfo(`داده‌های پاسخ: ${JSON.stringify(data)}`);
         
         if (data.status === "success") {
           showMessage("✅ اطلاعات با موفقیت ارسال شد!", "success");
@@ -359,9 +425,11 @@
           setTimeout(resetForm, 3000);
         } else {
           showMessage("❌ خطا در ارسال: " + (data.message || "خطای ناشناخته"), "error");
+          enableDebug();
         }
       } catch (err) {
         console.error("Error details:", err);
+        addDebugInfo(`خطای ارسال: ${err.message}`);
         
         let errorMessage = "⚠️ خطای اتصال: ";
         if (err.name === "AbortError") {
@@ -373,6 +441,7 @@
         }
         
         showMessage(errorMessage, "error");
+        enableDebug();
       } finally {
         isSubmitting = false;
         submitButton.disabled = false;
@@ -385,7 +454,21 @@
     testConnectionButton.addEventListener("click", testConnection);
 
     // راه‌اندازی اولیه
-    window.addEventListener("load", initCamera);
+    window.addEventListener("load", () => {
+      initCamera();
+      enableDebug();
+      addDebugInfo("صفحه بارگذاری شد");
+    });
+
+    // اعتبارسنجی real-time کد ملی
+    nationalCodeInput.addEventListener("input", function() {
+      const value = this.value.trim();
+      if (value.length === 10 && /^\d+$/.test(value)) {
+        this.style.borderColor = "#2ecc71";
+      } else {
+        this.style.borderColor = "#e74c3c";
+      }
+    });
   </script>
 </body>
 </html>
