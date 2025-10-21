@@ -65,6 +65,7 @@
       border-radius: 5px;
       overflow: hidden;
       margin: 10px 0;
+      position: relative;
     }
     video, img {
       width: 100%;
@@ -90,6 +91,22 @@
       text-align: center;
       margin-top: 15px;
     }
+    .loading {
+      opacity: 0.7;
+    }
+    .camera-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      font-size: 18px;
+    }
   </style>
 </head>
 <body>
@@ -97,7 +114,7 @@
     <h1>ارسال گیفت</h1>
 
     <label for="nationalCode">کد ملی</label>
-    <input id="nationalCode" maxlength="10" placeholder="کد ملی 10 رقمی">
+    <input id="nationalCode" maxlength="10" placeholder="کد ملی 10 رقمی" type="text">
 
     <label for="giftType">نوع گیفت</label>
     <select id="giftType">
@@ -111,6 +128,9 @@
     <div class="camera-container">
       <video id="cameraPreview" autoplay playsinline></video>
       <img id="capturedPhoto" class="hidden" alt="captured photo">
+      <div id="cameraOverlay" class="camera-overlay hidden">
+        در حال راه‌اندازی دوربین...
+      </div>
     </div>
 
     <button id="captureButton">📸 عکس بگیر</button>
@@ -129,25 +149,42 @@
     const nationalCodeInput = document.getElementById("nationalCode");
     const giftTypeSelect = document.getElementById("giftType");
     const messageDiv = document.getElementById("message");
+    const cameraOverlay = document.getElementById("cameraOverlay");
 
     let stream;
+    let isSubmitting = false;
 
     // تابع راه‌اندازی دوربین
     async function initCamera() {
+      cameraOverlay.classList.remove("hidden");
+      
       try {
+        // اول سعی می‌کنیم از دوربین پشتی استفاده کنیم
         stream = await navigator.mediaDevices.getUserMedia({ 
           video: { facingMode: "environment" }, 
           audio: false 
         });
         cameraPreview.srcObject = stream;
+        cameraOverlay.classList.add("hidden");
       } catch (e) {
-        showMessage("دسترسی به دوربین ممکن نیست", "error");
-        console.error("Camera error:", e);
+        // اگر دوربین پشتی در دسترس نبود، از دوربین جلو استفاده می‌کنیم
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "user" }, 
+            audio: false 
+          });
+          cameraPreview.srcObject = stream;
+          cameraOverlay.classList.add("hidden");
+        } catch (error) {
+          showMessage("دسترسی به دوربین ممکن نیست. لطفاً مجوز دسترسی را بررسی کنید.", "error");
+          cameraOverlay.textContent = "دوربین در دسترس نیست";
+          console.error("Camera error:", error);
+        }
       }
     }
 
     // تابع فشرده‌سازی عکس
-    function compressImage(dataUrl, quality = 0.7) {
+    function compressImage(dataUrl, quality = 0.6) {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = function() {
@@ -186,7 +223,7 @@
                             type === "error" ? "error-message" : "hidden";
       messageDiv.classList.remove("hidden");
       
-      // پنهان کردن خودکار پیام بعد از 5 ثانیه
+      // پنهان کردن خودکار پیام بعد از 5 ثانیه (به جز خطاها)
       if (type !== "error") {
         setTimeout(() => {
           messageDiv.classList.add("hidden");
@@ -204,6 +241,47 @@
       retakeButton.classList.add('hidden');
       submitButton.classList.add('hidden');
       messageDiv.classList.add('hidden');
+    }
+
+    // تابع ارسال داده به سرور
+    async function sendToServer(nationalCode, giftType, photo) {
+      // استفاده از دو آدرس مختلف برای تست
+      const urls = [
+        "https://script.google.com/macros/s/AKfycbw1Cv9EUfRCAGa4cWcmSr-SyBdT1Cf7jBPupEU1KafcSzNVy9bc6hVl4qsoWtiHXsay/exec",
+        "https://script.google.com/macros/s/AKfycbw1Cv9EUfRCAGa4cWcmSr-SyBdT1Cf7jBPupEU1KafcSzNVy9bc6hVl4qsoWtiHXsay/exec"
+      ];
+      
+      for (let i = 0; i < urls.length; i++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // تایم‌اوت 15 ثانیه
+          
+          const response = await fetch(urls[i], {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ 
+              nationalCode, 
+              giftType, 
+              photo 
+            }),
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            throw new Error(`خطای HTTP: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error(`Attempt ${i+1} failed:`, error);
+          if (i === urls.length - 1) throw error; // اگر همه تلاش‌ها شکست خورد
+        }
+      }
     }
 
     // رویداد گرفتن عکس
@@ -232,6 +310,8 @@
 
     // رویداد ارسال فرم
     submitButton.addEventListener("click", async () => {
+      if (isSubmitting) return;
+      
       const nationalCode = nationalCodeInput.value.trim();
       const giftType = giftTypeSelect.value;
       const photo = capturedPhoto.src;
@@ -250,35 +330,20 @@
         return;
       }
 
+      isSubmitting = true;
       submitButton.disabled = true;
       submitButton.textContent = "⏳ در حال ارسال...";
+      document.body.classList.add("loading");
 
       try {
         // فشرده‌سازی عکس قبل از ارسال
         const compressedPhoto = await compressImage(photo);
         
         // ارسال داده به سرور
-        const response = await fetch("https://script.google.com/macros/s/AKfycbw1Cv9EUfRCAGa4cWcmSr-SyBdT1Cf7jBPupEU1KafcSzNVy9bc6hVl4qsoWtiHXsay/exec", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ 
-            nationalCode, 
-            giftType, 
-            photo: compressedPhoto 
-          })
-        });
-
-        // بررسی وضعیت پاسخ
-        if (!response.ok) {
-          throw new Error(`خطای HTTP: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = await sendToServer(nationalCode, giftType, compressedPhoto);
         
         if (data.status === "success") {
-          showMessage("✅ عکس با موفقیت در گوگل‌درایو ذخیره شد!", "success");
+          showMessage("✅ اطلاعات با موفقیت ارسال شد!", "success");
           console.log("File URL:", data.fileUrl);
           // ریست فرم بعد از 3 ثانیه
           setTimeout(resetForm, 3000);
@@ -287,27 +352,52 @@
         }
       } catch (err) {
         console.error("Error details:", err);
-        showMessage("⚠️ خطای اتصال: " + err.message, "error");
+        
+        // تشخیص نوع خطا
+        let errorMessage = "⚠️ خطای اتصال: ";
+        if (err.name === "AbortError") {
+          errorMessage += "اتصال timeout خورد. لطفاً اینترنت خود را بررسی کنید.";
+        } else if (err.message.includes("Failed to fetch")) {
+          errorMessage += "ارتباط با سرور برقرار نشد. لطفاً اتصال اینترنت خود را بررسی کنید.";
+        } else {
+          errorMessage += err.message;
+        }
+        
+        showMessage(errorMessage, "error");
       } finally {
+        isSubmitting = false;
         submitButton.disabled = false;
         submitButton.textContent = "✅ ارسال";
+        document.body.classList.remove("loading");
       }
     });
 
-    // تست اتصال هنگام لود صفحه
-    async function testConnection() {
-      try {
-        const testResponse = await fetch("https://script.google.com/macros/s/AKfycbw1Cv9EUfRCAGa4cWcmSr-SyBdT1Cf7jBPupEU1KafcSzNVy9bc6hVl4qsoWtiHXsay/exec");
-        console.log("Connection test:", testResponse);
-      } catch (error) {
-        console.error("Connection test failed:", error);
+    // مدیریت دوربین هنگام تغییر visibility صفحه
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        // اگر صفحه پنهان شد، دوربین را خاموش کن
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
+      } else {
+        // اگر صفحه دوباره visible شد، دوربین را راه‌اندازی کن
+        if (!cameraPreview.srcObject) {
+          initCamera();
+        }
       }
-    }
+    });
 
     // راه‌اندازی اولیه
-    window.addEventListener("load", () => {
-      initCamera();
-      testConnection();
+    window.addEventListener("load", initCamera);
+    
+    // اضافه کردن اعتبارسنجی real-time برای کد ملی
+    nationalCodeInput.addEventListener("input", function() {
+      const value = this.value.trim();
+      if (value.length === 10 && /^\d+$/.test(value)) {
+        this.style.borderColor = "#2ecc71";
+      } else {
+        this.style.borderColor = "#ddd";
+      }
     });
   </script>
 </body>
