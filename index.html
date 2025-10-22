@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ارسال گیفت</title>
   <style>
+    /* استایل‌ها بدون تغییر می‌مانند */
     * {
       margin: 0;
       padding: 0;
@@ -209,6 +210,7 @@
 
     let stream;
     let isSubmitting = false;
+    let currentPhotoBlob = null; // ذخیره عکس به صورت Blob
     let currentScriptUrl = "https://script.google.com/macros/s/AKfycbwc-SX2sUqHFTFELQsTPG0Ptmex6czSYj2PB5ivIvly3MHi7mqhpo6dzZ7RFNssMPlv/exec";
 
     // افزودن اطلاعات دیباگ
@@ -368,36 +370,54 @@
       }
     }
 
-    // تابع فشرده‌سازی عکس
-    function compressImage(dataUrl, quality = 0.6) {
+    // تابع فشرده‌سازی عکس و تبدیل به Blob
+    function captureAndCompressImage() {
       return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = function() {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        
+        // تنظیم سایز کانواس بر اساس ویدیو
+        canvas.width = cameraPreview.videoWidth;
+        canvas.height = cameraPreview.videoHeight;
+        
+        // کشیدن فریم از ویدیو روی کانواس
+        ctx.drawImage(cameraPreview, 0, 0, canvas.width, canvas.height);
+        
+        // تنظیم سایز برای فشرده‌سازی
+        const maxWidth = 800;
+        const maxHeight = 600;
+        let width = canvas.width;
+        let height = canvas.height;
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = (width * maxHeight) / height;
+          height = maxHeight;
+        }
+        
+        // ایجاد کانواس جدید با سایز فشرده
+        const compressedCanvas = document.createElement("canvas");
+        const compressedCtx = compressedCanvas.getContext("2d");
+        compressedCanvas.width = width;
+        compressedCanvas.height = height;
+        
+        // کشیدن عکس با سایز فشرده
+        compressedCtx.drawImage(canvas, 0, 0, width, height);
+        
+        // تبدیل به Blob با کیفیت 0.8
+        compressedCanvas.toBlob((blob) => {
+          addDebugInfo(`عکس فشرده شد: ${width}x${height} - حجم: ${Math.round(blob.size/1024)} KB`);
           
-          const maxWidth = 800;
-          const maxHeight = 600;
-          let width = img.width;
-          let height = img.height;
-          
-          if (width > maxWidth) {
-            height = (height * maxWidth) / width;
-            width = maxWidth;
-          }
-          if (height > maxHeight) {
-            width = (width * maxHeight) / height;
-            height = maxHeight;
-          }
-          
-          canvas.width = width;
-          canvas.height = height;
-          
-          ctx.drawImage(img, 0, 0, width, height);
-          addDebugInfo(`عکس فشرده شد: ${width}x${height} - کیفیت: ${quality}`);
-          resolve(canvas.toDataURL('image/jpeg', quality));
-        };
-        img.src = dataUrl;
+          // ایجاد URL برای نمایش پیش‌نمایش
+          const imageUrl = URL.createObjectURL(blob);
+          resolve({
+            blob: blob,
+            url: imageUrl
+          });
+        }, 'image/jpeg', 0.8);
       });
     }
 
@@ -427,22 +447,42 @@
       retakeButton.classList.add('hidden');
       submitButton.classList.add('hidden');
       messageDiv.classList.add('hidden');
+      
+      // پاک کردن blob قبلی
+      if (currentPhotoBlob) {
+        URL.revokeObjectURL(capturedPhoto.src);
+        currentPhotoBlob = null;
+      }
+      
       addDebugInfo("فرم ریست شد");
     }
 
     // رویداد گرفتن عکس
-    captureButton.addEventListener("click", () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = cameraPreview.videoWidth;
-      canvas.height = cameraPreview.videoHeight;
-      canvas.getContext("2d").drawImage(cameraPreview, 0, 0);
-      capturedPhoto.src = canvas.toDataURL("image/png");
-      capturedPhoto.classList.remove("hidden");
-      cameraPreview.classList.add("hidden");
-      captureButton.classList.add("hidden");
-      retakeButton.classList.remove("hidden");
-      submitButton.classList.remove("hidden");
-      addDebugInfo("عکس گرفته شد");
+    captureButton.addEventListener("click", async () => {
+      try {
+        captureButton.disabled = true;
+        captureButton.textContent = "⏳ در حال پردازش...";
+        
+        const result = await captureAndCompressImage();
+        currentPhotoBlob = result.blob;
+        capturedPhoto.src = result.url;
+        
+        capturedPhoto.classList.remove("hidden");
+        cameraPreview.classList.add("hidden");
+        captureButton.classList.add("hidden");
+        retakeButton.classList.remove("hidden");
+        submitButton.classList.remove("hidden");
+        
+        captureButton.disabled = false;
+        captureButton.textContent = "📸 عکس بگیر";
+        
+        addDebugInfo("عکس گرفته و فشرده شد");
+      } catch (error) {
+        showMessage("خطا در گرفتن عکس", "error");
+        captureButton.disabled = false;
+        captureButton.textContent = "📸 عکس بگیر";
+        addDebugInfo(`خطا در گرفتن عکس: ${error.message}`);
+      }
     });
 
     // رویداد عکس مجدد
@@ -453,16 +493,22 @@
       retakeButton.classList.add("hidden");
       submitButton.classList.add("hidden");
       messageDiv.classList.add("hidden");
+      
+      // پاک کردن blob قبلی
+      if (currentPhotoBlob) {
+        URL.revokeObjectURL(capturedPhoto.src);
+        currentPhotoBlob = null;
+      }
+      
       addDebugInfo("عکس مجدد");
     });
 
-    // رویداد ارسال فرم
+    // رویداد ارسال فرم - نسخه جدید با FormData
     submitButton.addEventListener("click", async () => {
       if (isSubmitting) return;
       
       const nationalCode = nationalCodeInput.value.trim();
       const giftType = giftTypeSelect.value;
-      const photo = capturedPhoto.src;
       const url = getCurrentServerUrl();
 
       if (!url) {
@@ -479,7 +525,7 @@
         showMessage("نوع گیفت را انتخاب کنید", "error");
         return;
       }
-      if (!photo) {
+      if (!currentPhotoBlob) {
         showMessage("عکسی گرفته نشده", "error");
         return;
       }
@@ -493,22 +539,19 @@
       addDebugInfo(`داده‌ها: کدملی=${nationalCode}, نوع گیفت=${giftType}`);
 
       try {
-        const compressedPhoto = await compressImage(photo);
-        addDebugInfo(`عکس فشرده شد: ${Math.round(compressedPhoto.length/1024)} KB`);
+        // ایجاد FormData برای ارسال multipart
+        const formData = new FormData();
+        formData.append('nationalCode', nationalCode);
+        formData.append('giftType', giftType);
+        formData.append('photo', currentPhotoBlob, 'gift_photo.jpg');
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         
+        // ارسال با FormData (بدون هدر Content-Type - مرورگر خودش تنظیم می‌کند)
         const response = await fetch(url, {
           method: "POST",
-          headers: { 
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ 
-            nationalCode, 
-            giftType, 
-            photo: compressedPhoto 
-          }),
+          body: formData,
           signal: controller.signal
         });
         
@@ -525,7 +568,6 @@
         
         if (data.status === "success") {
           showMessage("✅ اطلاعات با موفقیت ارسال شد!", "success");
-          console.log("File URL:", data.fileUrl);
           setTimeout(resetForm, 3000);
         } else {
           showMessage("❌ خطا در ارسال: " + (data.message || "خطای ناشناخته"), "error");
