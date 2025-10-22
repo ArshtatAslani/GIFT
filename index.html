@@ -153,15 +153,31 @@
         let stream = null;
         let capturedPhoto = null;
         
-        // باز کردن دوربین
+        // باز کردن دوربین (دوربین پشت)
         openCameraBtn.addEventListener('click', async () => {
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // مشخص کردن استفاده از دوربین پشت
+                const constraints = {
+                    video: {
+                        facingMode: { exact: "environment" } // استفاده از دوربین پشت
+                    }
+                };
+                
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
                 cameraContainer.style.display = 'block';
                 openCameraBtn.style.display = 'none';
             } catch (err) {
-                alert('دسترسی به دوربین امکان‌پذیر نیست: ' + err.message);
+                // اگر دوربین پشت پیدا نشد، از دوربین پیشفرض استفاده کن
+                try {
+                    console.log('دوربین پشت یافت نشد، از دوربین پیشفرض استفاده می‌شود');
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    video.srcObject = stream;
+                    cameraContainer.style.display = 'block';
+                    openCameraBtn.style.display = 'none';
+                } catch (fallbackErr) {
+                    alert('دسترسی به دوربین امکان‌پذیر نیست: ' + fallbackErr.message);
+                }
             }
         });
         
