@@ -71,6 +71,11 @@
             background-color: #45a049;
         }
         
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
         .camera-container {
             display: none;
             text-align: center;
@@ -106,6 +111,33 @@
             margin-top: 5px;
             display: none;
         }
+        
+        .success {
+            color: green;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4CAF50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -133,7 +165,14 @@
             <img id="captured-image" alt="عکس گرفته شده">
         </div>
         
-        <button id="submit-btn" class="btn" style="background-color: #2196F3; display: none;">ارسال اطلاعات</button>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>در حال ارسال اطلاعات...</p>
+        </div>
+        
+        <div id="success-message" class="success"></div>
+        
+        <button id="submit-btn" class="btn" style="background-color: #2196F3; display: none;">ارسال اطلاعات به تلگرام</button>
     </div>
 
     <script>
@@ -149,6 +188,11 @@
         const capturedImage = document.getElementById('captured-image');
         const submitBtn = document.getElementById('submit-btn');
         const nationalCodeError = document.getElementById('national-code-error');
+        const loading = document.getElementById('loading');
+        const successMessage = document.getElementById('success-message');
+        
+        // توکن تلگرام شما
+        const TELEGRAM_BOT_TOKEN = '8254723354:AAGyN-O8uo6AOi-DeaqpWAc0Mf2Ur0AhZaQ';
         
         let stream = null;
         let capturedPhoto = null;
@@ -240,7 +284,7 @@
             return isValid;
         }
         
-        // ارسال اطلاعات
+        // ارسال اطلاعات به تلگرام
         submitBtn.addEventListener('click', async () => {
             if (!validateNationalCode()) {
                 alert('لطفاً کد ملی معتبر وارد کنید');
@@ -252,37 +296,63 @@
                 return;
             }
             
-            // در اینجا باید اطلاعات را به سرور تلگرام ارسال کنید
-            // این بخش نیاز به تنظیمات خاص سرور و توکن ربات تلگرام دارد
-            
-            // نمونه کد برای ارسال به تلگرام (نیازمند پیکربندی)
-            /*
-            const formData = new FormData();
-            formData.append('chat_id', 'YOUR_CHAT_ID');
-            formData.append('photo', dataURLtoBlob(capturedPhoto), 'photo.jpg');
-            formData.append('caption', `کد ملی: ${nationalCodeInput.value}`);
+            // غیرفعال کردن دکمه ارسال و نمایش لودینگ
+            submitBtn.disabled = true;
+            loading.style.display = 'block';
+            successMessage.style.display = 'none';
             
             try {
-                const response = await fetch(`https://api.telegram.org/botYOUR_BOT_TOKEN/sendPhoto`, {
+                // تبدیل عکس به Blob
+                const blob = dataURLtoBlob(capturedPhoto);
+                
+                // ایجاد FormData برای ارسال
+                const formData = new FormData();
+                formData.append('photo', blob, 'photo.jpg');
+                formData.append('caption', `کد ملی: ${nationalCodeInput.value}\nتاریخ: ${new Date().toLocaleString('fa-IR')}`);
+                
+                // ابتدا اطلاعات ربات را دریافت می‌کنیم
+                const botInfoResponse = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`);
+                const botInfo = await botInfoResponse.json();
+                
+                if (!botInfo.ok) {
+                    throw new Error('توکن تلگرام معتبر نیست');
+                }
+                
+                // حالا با استفاده از getUpdates، چت آیدی را پیدا می‌کنیم
+                const updatesResponse = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`);
+                const updates = await updatesResponse.json();
+                
+                if (!updates.ok || !updates.result || updates.result.length === 0) {
+                    throw new Error('هیچ پیامی در ربات دریافت نشده است. لطفاً ابتدا پیامی به ربات ارسال کنید.');
+                }
+                
+                // استفاده از اولین چت آیدی موجود
+                const chatId = updates.result[0].message.chat.id;
+                
+                // ارسال عکس به تلگرام
+                const sendResponse = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
                     method: 'POST',
                     body: formData
                 });
                 
-                if (response.ok) {
-                    alert('اطلاعات با موفقیت ارسال شد');
-                    // ریست فرم
+                const result = await sendResponse.json();
+                
+                if (result.ok) {
+                    successMessage.textContent = 'اطلاعات با موفقیت به تلگرام ارسال شد!';
+                    successMessage.style.display = 'block';
                     resetForm();
                 } else {
-                    alert('خطا در ارسال اطلاعات');
+                    throw new Error(result.description || 'خطا در ارسال اطلاعات');
                 }
+                
             } catch (error) {
-                alert('خطا در ارتباط با سرور: ' + error.message);
+                console.error('Error:', error);
+                alert('خطا در ارسال اطلاعات: ' + error.message);
+            } finally {
+                // فعال کردن مجدد دکمه ارسال و مخفی کردن لودینگ
+                submitBtn.disabled = false;
+                loading.style.display = 'none';
             }
-            */
-            
-            // در این مثال فقط یک پیام نمایش می‌دهیم
-            alert(`کد ملی ${nationalCodeInput.value} و عکس با موفقیت ثبت شدند (ارسال به تلگرام در این دمو فعال نیست)`);
-            resetForm();
         });
         
         // تابع کمکی برای تبدیل DataURL به Blob
@@ -306,6 +376,11 @@
             submitBtn.style.display = 'none';
             openCameraBtn.style.display = 'block';
             capturedPhoto = null;
+            
+            // بعد از 3 ثانیه پیام موفقیت را پاک کن
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
         }
     </script>
 </body>
