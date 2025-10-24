@@ -1,387 +1,514 @@
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>فرم کد ملی و عکس‌برداری</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f5f5;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        
-        .container {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 25px;
-            width: 100%;
-            max-width: 400px;
-        }
-        
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 20px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #555;
-        }
-        
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        
-        .btn {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            text-align: center;
-            text-decoration: none;
-            display: block;
-            width: 100%;
-            font-size: 16px;
-            margin: 10px 0;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-        
-        .btn:hover {
-            background-color: #45a049;
-        }
-        
-        .btn:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        
-        .camera-container {
-            display: none;
-            text-align: center;
-            margin-top: 20px;
-        }
-        
-        #video {
-            width: 100%;
-            max-width: 400px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-        
-        #canvas {
-            display: none;
-        }
-        
-        #captured-image {
-            max-width: 100%;
-            display: none;
-            margin-top: 15px;
-            border-radius: 5px;
-        }
-        
-        .preview-container {
-            margin-top: 20px;
-            text-align: center;
-        }
-        
-        .error {
-            color: red;
-            font-size: 14px;
-            margin-top: 5px;
-            display: none;
-        }
-        
-        .success {
-            color: green;
-            font-size: 14px;
-            margin-top: 5px;
-            display: none;
-        }
-        
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 10px 0;
-        }
-        
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #4CAF50;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>فرم ثبت اطلاعات</h1>
-        
-        <div class="form-group">
-            <label for="national-code">کد ملی</label>
-            <input type="text" id="national-code" placeholder="کد ملی خود را وارد کنید">
-            <div id="national-code-error" class="error">کد ملی معتبر نیست</div>
-        </div>
-        
-        <button id="open-camera-btn" class="btn">باز کردن دوربین</button>
-        
-        <div class="camera-container" id="camera-container">
-            <video id="video" autoplay playsinline></video>
-            <canvas id="canvas"></canvas>
-            
-            <button id="capture-btn" class="btn">گرفتن عکس</button>
-            <button id="retake-btn" class="btn" style="display: none; background-color: #f44336;">عکس مجدد</button>
-            <button id="use-photo-btn" class="btn" style="display: none;">استفاده از این عکس</button>
-        </div>
-        
-        <div class="preview-container">
-            <img id="captured-image" alt="عکس گرفته شده">
-        </div>
-        
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>در حال ارسال اطلاعات...</p>
-        </div>
-        
-        <div id="success-message" class="success"></div>
-        
-        <button id="submit-btn" class="btn" style="background-color: #2196F3; display: none;">ارسال اطلاعات به تلگرام</button>
-    </div>
+/*
 
-    <script>
-        // عناصر DOM
-        const nationalCodeInput = document.getElementById('national-code');
-        const openCameraBtn = document.getElementById('open-camera-btn');
-        const cameraContainer = document.getElementById('camera-container');
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const captureBtn = document.getElementById('capture-btn');
-        const retakeBtn = document.getElementById('retake-btn');
-        const usePhotoBtn = document.getElementById('use-photo-btn');
-        const capturedImage = document.getElementById('captured-image');
-        const submitBtn = document.getElementById('submit-btn');
-        const nationalCodeError = document.getElementById('national-code-error');
-        const loading = document.getElementById('loading');
-        const successMessage = document.getElementById('success-message');
+https://github.com/benixal
+https://www.youtube.com/@benixal
+
+*/
+
+export default {
+    // @ts-ignore
+    async fetch(request, env, ctx) {
+
+        const botToken = '<bot-token>';
+        const chatId = '<chat-id>';
+
+        const url = new URL(request.url);
+        const domain = url.hostname;
+        const pathParts = url.pathname.split('/');
+
+        if (request.method === 'GET' && url.pathname === '/') {
+
+
+
+            // @ts-ignore
+            const isBotTokenInvalid = !botToken || botToken === '<bot-token>';
+            // @ts-ignore
+            const isChatIdInvalid = !chatId || chatId === '<chat-id>';
+
+
+
+            let warningMessage = '';
+            if (isBotTokenInvalid) {
+                warningMessage += '<p style="color: red;">Warning: botToken is not defined</p>';
+            }
+            if (isChatIdInvalid) {
+                warningMessage += '<p style="color: red;">Warning: chatId is not defined</p>';
+            }
+
+
+            const htmlForm = `<!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>File Upload</title>
+            <style>
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
         
-        // توکن تلگرام شما
-        const TELEGRAM_BOT_TOKEN = '8254723354:AAGyN-O8uo6AOi-DeaqpWAc0Mf2Ur0AhZaQ';
+              body {
+                background-color: #15181e;
+                color: white;
+                font-family: 'Arial', sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                padding: 20px;
+              }
         
-        let stream = null;
-        let capturedPhoto = null;
+              .container {
+                background-color: #1f2229;
+                padding: 40px;
+                border-radius: 10px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+                text-align: center;
+              }
         
-        // باز کردن دوربین (دوربین پشت)
-        openCameraBtn.addEventListener('click', async () => {
-            try {
-                // مشخص کردن استفاده از دوربین پشت
-                const constraints = {
-                    video: {
-                        facingMode: { exact: "environment" } // استفاده از دوربین پشت
+              h1 {
+                font-size: 2rem;
+                margin-bottom: 20px;
+              }
+        
+              input[type="file"] {
+                display: block;
+                margin: 20px auto;
+                padding: 1rem;
+                font-size: 1.2rem;
+                background-color: #2b3038;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                width: 100%;
+                max-width: 400px;
+                cursor: pointer;
+              }
+        
+              button {
+                font-size: 1.5rem;
+                padding: 1rem 2rem;
+                margin-top: 20px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                transition: background-color 0.3s ease;
+              }
+        
+              button:hover {
+                background-color: #45a049;
+              }
+        
+              input[type="file"]:hover {
+                background-color: #3b4048;
+              }
+  
+  
+  
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Upload a File</h1>
+              ${warningMessage}
+  <form action="/upload" method="POST" enctype="multipart/form-data">
+    <input type="file" name="file" id="fileInput" accept="image/*,video/*" required />
+    <div id="previewContainer" style="margin: 20px 0; text-align: center;">
+      <img id="imagePreview" style="max-width: 100%; max-height: 300px; display: none;" />
+      <video id="videoPreview" controls style="max-width: 100%; max-height: 300px; display: none;"></video>
+    </div>
+    <button type="submit">Upload</button>
+  </form>
+  
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const imagePreview = document.getElementById('imagePreview');
+    const videoPreview = document.getElementById('videoPreview');
+    const previewContainer = document.getElementById('previewContainer');
+  
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+  
+      const fileType = file.type;
+      const previewURL = URL.createObjectURL(file);
+  
+      // Reset previews
+      imagePreview.style.display = 'none';
+      videoPreview.style.display = 'none';
+  
+      if (fileType.startsWith('image/')) {
+        imagePreview.src = previewURL;
+        imagePreview.style.display = 'block';
+      } else if (fileType.startsWith('video/')) {
+        videoPreview.src = previewURL;
+        videoPreview.style.display = 'block';
+      }
+    });
+  </script>
+  
+            </div>
+          </body>
+        </html>
+        `;
+
+            return new Response(htmlForm, {
+                headers: { 'Content-Type': 'text/html' }
+            });
+
+
+        }
+
+
+
+        if (request.method === 'GET' && pathParts[1] === 'init') {
+            const telegramResponse = await postReq("setWebhook", [
+                { "url": `https://${domain}/hook` }
+            ]);
+            const telegramResult = await telegramResponse.text();
+            return new Response(telegramResult);
+        }
+
+
+
+        // Handle file download request
+        if (pathParts[1] === 'download' && pathParts[2]) {
+            const fileResponse = await postReq(`getFile`, [
+                { "file_id": pathParts[2] }
+            ]);
+
+            const fileData = await fileResponse.json();
+            const telegramFileResponse = await fetch(`https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`);
+
+            // Modify response headers
+            const newHeaders = new Headers(telegramFileResponse.headers);
+
+            // Optionally change Content-Type if it's 'application/octet-stream'
+            const contentType = newHeaders.get('Content-Type');
+            if (contentType === 'application/octet-stream') {
+                newHeaders.set('Content-Type', ''); // Adjust or leave blank
+            }
+
+            newHeaders.delete('Content-Disposition'); // Prevent forced download
+
+            return new Response(telegramFileResponse.body, { headers: newHeaders });
+        }
+
+
+
+
+        function extractFileIds(obj) {
+            const fileIds = [];
+
+            function searchForFileIds(item) {
+                if (item && typeof item === 'object') {
+                    // Check if the item has 'file_id'
+                    if (item.file_id) fileIds.push(item.file_id);
+
+                    // Recursively search through all object properties
+                    Object.values(item).forEach(searchForFileIds);
+                } else if (Array.isArray(item)) {
+                    item.forEach(searchForFileIds);
+                }
+            }
+
+            searchForFileIds(obj);
+            const uniquefileIds = [...new Set(fileIds)];
+            return uniquefileIds;
+        }
+
+        async function postReq(url, fields) {
+            const tgFormData = new FormData();
+
+            fields.forEach(obj => {
+                for (let key in obj) {
+                    tgFormData.append(key, obj[key]);
+                }
+            });
+
+            const telegramResponse = await fetch(`https://api.telegram.org/bot${botToken}/${url}`, {
+                method: 'POST',
+                body: tgFormData,
+            });
+
+            return await telegramResponse;
+        }
+
+
+
+        if (url.pathname === '/hook' && ['POST', 'PUT'].includes(request.method)) {
+            const json = await request.json();
+            const fileIds = extractFileIds(json);
+            if (fileIds.length > 0) {
+
+
+                const downloadLinks = await Promise.all(
+                    fileIds.map(async (fid) => {
+                        const fileResponse = await postReq(`getFile`, [
+                            { "file_id": fid }
+                        ]);
+
+                        const fileData = await fileResponse.json();
+
+
+
+                        if (fileData.ok) {
+                            return `https://${domain}/download/${fid}/${fileData.result.file_path}`;
+                        } else {
+
+                            await postReq(`sendMessage`, [
+                                { "chat_id": json.message.from.id },
+                                { "text": "error" },
+                                { "parse_mode": "MarkdownV2" },
+                                { "reply_to_message_id": json.message.message_id }
+                            ])
+                            return false;
+
+                        }
+
+
+                    })
+                );
+
+                let msg = [];
+                for (const item of downloadLinks) {
+                    if (item) {
+                        msg.push(`Download Link: \`${item}\``);
                     }
-                };
-                
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = stream;
-                cameraContainer.style.display = 'block';
-                openCameraBtn.style.display = 'none';
-            } catch (err) {
-                // اگر دوربین پشت پیدا نشد، از دوربین پیشفرض استفاده کن
-                try {
-                    console.log('دوربین پشت یافت نشد، از دوربین پیشفرض استفاده می‌شود');
-                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    video.srcObject = stream;
-                    cameraContainer.style.display = 'block';
-                    openCameraBtn.style.display = 'none';
-                } catch (fallbackErr) {
-                    alert('دسترسی به دوربین امکان‌پذیر نیست: ' + fallbackErr.message);
                 }
-            }
-        });
-        
-        // گرفتن عکس
-        captureBtn.addEventListener('click', () => {
-            const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            capturedPhoto = canvas.toDataURL('image/jpeg');
-            capturedImage.src = capturedPhoto;
-            capturedImage.style.display = 'block';
-            
-            captureBtn.style.display = 'none';
-            retakeBtn.style.display = 'block';
-            usePhotoBtn.style.display = 'block';
-        });
-        
-        // عکس مجدد
-        retakeBtn.addEventListener('click', () => {
-            capturedImage.style.display = 'none';
-            captureBtn.style.display = 'block';
-            retakeBtn.style.display = 'none';
-            usePhotoBtn.style.display = 'none';
-        });
-        
-        // استفاده از عکس گرفته شده
-        usePhotoBtn.addEventListener('click', () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-            cameraContainer.style.display = 'none';
-            submitBtn.style.display = 'block';
-        });
-        
-        // اعتبارسنجی کد ملی
-        nationalCodeInput.addEventListener('blur', validateNationalCode);
-        
-        function validateNationalCode() {
-            const code = nationalCodeInput.value;
-            // الگوریتم ساده برای اعتبارسنجی کد ملی ایران
-            if (code.length !== 10 || isNaN(code)) {
-                nationalCodeError.style.display = 'block';
-                return false;
-            }
-            
-            let sum = 0;
-            for (let i = 0; i < 9; i++) {
-                sum += parseInt(code.charAt(i)) * (10 - i);
-            }
-            
-            let remainder = sum % 11;
-            let controlDigit = parseInt(code.charAt(9));
-            
-            let isValid = (remainder < 2 && controlDigit === remainder) || 
-                          (remainder >= 2 && controlDigit === 11 - remainder);
-            
-            nationalCodeError.style.display = isValid ? 'none' : 'block';
-            return isValid;
-        }
-        
-        // ارسال اطلاعات به تلگرام
-        submitBtn.addEventListener('click', async () => {
-            if (!validateNationalCode()) {
-                alert('لطفاً کد ملی معتبر وارد کنید');
-                return;
-            }
-            
-            if (!capturedPhoto) {
-                alert('لطفاً یک عکس بگیرید');
-                return;
-            }
-            
-            // غیرفعال کردن دکمه ارسال و نمایش لودینگ
-            submitBtn.disabled = true;
-            loading.style.display = 'block';
-            successMessage.style.display = 'none';
-            
-            try {
-                // تبدیل عکس به Blob
-                const blob = dataURLtoBlob(capturedPhoto);
-                
-                // ایجاد FormData برای ارسال
-                const formData = new FormData();
-                formData.append('photo', blob, 'photo.jpg');
-                formData.append('caption', `کد ملی: ${nationalCodeInput.value}\nتاریخ: ${new Date().toLocaleString('fa-IR')}`);
-                
-                // ابتدا اطلاعات ربات را دریافت می‌کنیم
-                const botInfoResponse = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`);
-                const botInfo = await botInfoResponse.json();
-                
-                if (!botInfo.ok) {
-                    throw new Error('توکن تلگرام معتبر نیست');
+
+                if (msg.length > 0) {
+                    await postReq(`sendMessage`, [
+                        { "chat_id": json.message.from.id },
+                        { "text": msg.join("\n\n") },
+                        { "parse_mode": "MarkdownV2" },
+                        { "reply_to_message_id": json.message.message_id }
+                    ])
                 }
-                
-                // حالا با استفاده از getUpdates، چت آیدی را پیدا می‌کنیم
-                const updatesResponse = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`);
-                const updates = await updatesResponse.json();
-                
-                if (!updates.ok || !updates.result || updates.result.length === 0) {
-                    throw new Error('هیچ پیامی در ربات دریافت نشده است. لطفاً ابتدا پیامی به ربات ارسال کنید.');
-                }
-                
-                // استفاده از اولین چت آیدی موجود
-                const chatId = updates.result[0].message.chat.id;
-                
-                // ارسال عکس به تلگرام
-                const sendResponse = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await sendResponse.json();
-                
-                if (result.ok) {
-                    successMessage.textContent = 'اطلاعات با موفقیت به تلگرام ارسال شد!';
-                    successMessage.style.display = 'block';
-                    resetForm();
+
+
+
+            } else {
+
+                if ('text' in json.message && json.message.text.toLowerCase().includes('chatid')) {
+
+
+                    await postReq(`sendMessage`, [
+                        { "chat_id": json.message.from.id },
+                        { "text": `your chatId is: \`${json.message.from.id}\`` },
+                        { "parse_mode": "MarkdownV2" },
+                        { "reply_to_message_id": json.message.message_id }
+                    ])
+
+
+                } else if ('text' in json.message && json.message.text.includes('/start')) {
+
+                    await postReq(`sendMessage`, [
+                        { "chat_id": json.message.from.id },
+                        { "text": "Welcome!" },
+
+
+                    ])
+
                 } else {
-                    throw new Error(result.description || 'خطا در ارسال اطلاعات');
+
+                    await postReq(`sendMessage`, [
+                        { "chat_id": json.message.from.id },
+                        { "text": "send me a file" },
+
+                        { "reply_to_message_id": json.message.message_id }
+                    ])
+
                 }
-                
-            } catch (error) {
-                console.error('Error:', error);
-                alert('خطا در ارسال اطلاعات: ' + error.message);
-            } finally {
-                // فعال کردن مجدد دکمه ارسال و مخفی کردن لودینگ
-                submitBtn.disabled = false;
-                loading.style.display = 'none';
+
             }
-        });
-        
-        // تابع کمکی برای تبدیل DataURL به Blob
-        function dataURLtoBlob(dataURL) {
-            const parts = dataURL.split(';base64,');
-            const contentType = parts[0].split(':')[1];
-            const raw = window.atob(parts[1]);
-            const uInt8Array = new Uint8Array(raw.length);
+            return new Response("");
+        }
+
+
+
+
+
+
+        if (url.pathname === '/upload' && request.method === 'POST') {
+            const formData = await request.formData();
+            const file = formData.get('file');
+
+            if (file) {
+
+
+                const sendFileToChat = await postReq("sendDocument", [
+                    { "chat_id": chatId },
+                    { "document": file }
+                ])
+
+                const sendFileToChatResponse = await sendFileToChat.json();
+
+                if (sendFileToChat.ok) {
+
+                    const fileIds = extractFileIds(sendFileToChatResponse);
+
+                    const downloadLinks = await Promise.all(
+                        fileIds.map(async (fid) => {
+
+                            const fileResponse = await postReq(`getFile`, [
+                                { "file_id": fid }
+                            ]);
+
+                            const fileData = await fileResponse.json();
+                            if (fileData.ok) {
+                                return `https://${domain}/download/${fid}/${fileData.result.file_path}`;
+                            } else {
+
+                                await postReq(`sendMessage`, [
+                                    { "chat_id": chatId },
+                                    { "text": "error" },
+                                    { "parse_mode": "MarkdownV2" }
+                                ])
+
+                                return false;
+                            }
+
+                        })
+                    );
+
+
+                    let msg = [];
+
+                    for (const itemx of downloadLinks) {
+                        if (itemx) {
+                            msg.push(`Download Link: \`${itemx}\``);
+                        }
+                    }
+
+                    if (msg.length > 0) {
+                        await postReq("editMessageCaption", [
+                            { "chat_id": chatId },
+                            { "message_id": sendFileToChatResponse['result']['message_id'] },
+                            { "parse_mode": "MarkdownV2" },
+                            { "caption": msg.join("\n\n") }
+                        ])
+                    }
+
+                    const html = `
+            <!DOCTYPE html>
+            <html lang="en">
+              <head>
+                <meta charset="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <title>Uploads</title>
+                <style>
+                  body {
+                    background-color: #15181e;
+                  }
+                  .container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1rem;
+                    padding: 1rem;
+                  }
+                  .item {
+                    display: flex;
+                    flex-direction: column;
+                    text-align: left;
+                    padding: 1rem;
+                    color: white;
+                    border-radius: 8px;
+                    border: 1px solid green;
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                    background-color: white;
+                  }
+                  .link {
+                    color: black;
+                    text-align: left;
+                    padding: 1rem;
+                    letter-spacing: 1px;
+                    font-size: 14px;
+                  }
+                  .dllink {
+                    color: green;
+                    margin: 1rem 1rem 0rem 1rem;
+                    font-weight: bold;
+                    font-size: 1.5rem;
+                  }
+                  .image-preview {
+                    max-width: 100px;
+                    max-height: 100px;
+                   
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                  }
+  
+                  .image-size {
+                    font-size: 12px;
+                    color: black;
+                    margin-top: 0.5rem;
+                  }
+  
+                </style>
+              </head>
+              <body>
             
-            for (let i = 0; i < raw.length; ++i) {
-                uInt8Array[i] = raw.charCodeAt(i);
+                <h1 style="color:#c0b6ff;margin-left:2rem">My Uploads</h1>
+            
+                <div class="container">
+            
+                  ${downloadLinks.map(url => {
+                        // Check file extension for image types
+                        const fileExtension = url.split('.').pop().toLowerCase();
+                        const imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+                        const isImage = imageExtensions.includes(fileExtension);
+
+                        // Set the preview image, either the actual image or a generic icon
+                        const previewImage = isImage ? url : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABPCAMAAABs4TM5AAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAASxQTFRF/////v7+9vb26Ojo3t7e2dnZ2NjY5ubm9/f3/f392tranJycgICAdnZ2c3NzpKSktbW1t7e3kZGRdHR0dXV1mJiYvb29srKy1NTUy8vLe3t7oqKi1dXVeXl5tLS0+fn5kJCQxcXF09PT+vr6mZmZ6enpenp6xsbGzs7OwsLCzc3NzMzM/Pz8s7OzoKCgk5OTfn5+u7u7o6Ojm5ub7e3tiYmJr6+vf39/7OzsfHx8g4OD0tLS5+fnsbGxx8fH9fX1j4+Pl5eXioqK5OTk7+/v7u7uyMjI4ODgq6urjY2N+Pj4d3d3gYGBfX193Nzc3d3dp6enw8PDi4uLz8/PlZWV8/Pz9PT08vLy0NDQgoKCjIyMpqamhoaG39/flJSU29vbh4eHtra24uLi+/v77g8zIgAAAlNJREFUeJztmM9PE0EUx98zrUxty6VRoJYY0hREjXohGA/KASmJ/4AX+c+8mqhc4dJwaZFowIM/+HERYoLBkAYsEOq2tmOn2N1t9/XNbPbSkH6THnZ3vp+dN327++Yh2MKmgJa8gn/IC7YhwtmVH61zDhAa7O5uzk79fnUF4DBWGDvAQFWNCu93A4yEyqz/AgCi7iU0AaHIAO//D6CiUIBbeKbxtwBEFAowdqrz2wDA6K4HkMbf5gDPHBqADB75AHSuZAOQOrnqB9ARRQMwUeRSyAsAcW2nDTB56BMAonoQDAAithUMACKO3wIBYKi2FQxgr6QhIOl9kkV80wfg5oH33MUcDAEp/EkQVE4aAqAcJU4K/GEMiFwn3kajuGEMAOt2reO1dRhP4AdzgJpFre0wdpSR/gAe9QF9QB/QHcAXKg25P4MEYBxrf1m/wG0OIO/qo2l9UUhAJTmk8xeefmUAcJ8t9tT98ZMzglrESJIHWN9d9Vhv5sFlAFgak7soJgCZ0ijvX5ld5/Kg8lAbTSG7zgECp3IsE9YAdtMfOQBYcob145prcI/mwSUASI3JPZZK5bjgp7P8fJUDyCf67VMizwAqz4o6fyHhBEmEMPNZ8zghnrKpLOfwmAUUS64geyYPTPaNtB5ZOdOdK617+brp3plW9rU03b3TupM37h+Qmq++Me5gUJI3VLHS/AOya7oeCqV6uQzGXRxCU7F3YAO0fSSPZCq8AQ4A4CUu+Umn6fdzb6ENALiwyPTS3AonHuN+zvY5FxDTewaI0IsvD145h/8A56YfXwdUMPEAAAAASUVORK5CYII=';
+
+                        return `
+                      <div class="item">
+                      
+                      <img src="${previewImage}" class="image-preview" alt="File Preview" onload="displayImageSize(this)">
+                      <div class="image-size" data-size></div> 
+                      <div class="dllink">Download Link:</div>
+                        
+                        <div class="link">${url}</div>
+                      </div>`;
+                    }).join('')}
+            
+                </div>
+            
+                <script>
+                function displayImageSize(imgElement) {
+                  if (imgElement.src.startsWith('data:image/png;base64')) return; // Skip for non-images
+                  const width = imgElement.naturalWidth;
+                  const height = imgElement.naturalHeight;
+                  const sizeElement = imgElement.parentElement.querySelector('[data-size]');
+                  sizeElement.textContent = \`\${width} X \${height}\`;
+                }
+              </script>
+  
+              </body>
+            </html>
+            
+  
+          `;
+
+                    return new Response(html, {
+                        headers: { 'content-type': 'text/html;charset=UTF-8' },
+                    });
+
+                } else {
+
+                    return new Response(`Failed`, { status: 500 });
+                }
+
+
+            } else {
+                return new Response('No file uploaded', { status: 400 });
             }
-            
-            return new Blob([uInt8Array], { type: contentType });
         }
-        
-        // ریست فرم
-        function resetForm() {
-            nationalCodeInput.value = '';
-            capturedImage.style.display = 'none';
-            submitBtn.style.display = 'none';
-            openCameraBtn.style.display = 'block';
-            capturedPhoto = null;
-            
-            // بعد از 3 ثانیه پیام موفقیت را پاک کن
-            setTimeout(() => {
-                successMessage.style.display = 'none';
-            }, 3000);
-        }
-    </script>
-</body>
-</html>
+
+    }
+}
